@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,10 +15,16 @@ import (
 )
 
 const usage = `사용법:
-  tasklet add "<자연어>"   할 일 추가 (Haiku 파싱, 3~12초)
-  tasklet list             남은 일 목록
-  tasklet list --all       완료한 일까지
-  tasklet done <id>        완료 처리
+  tasklet add "<자연어>"    할 일 추가 (Haiku 파싱, 3~12초)
+  tasklet list              남은 일 목록
+  tasklet list --all        완료한 일까지
+  tasklet done <id>         완료 처리
+  tasklet menu              SwiftBar 메뉴 출력
+  tasklet prompt            입력창을 띄워 추가
+  tasklet edit <id>         원래 문장을 고쳐 다시 파싱
+  tasklet due <id> <spec>   기한만 변경 (+0d +1d eow next_eow none ...)
+  tasklet theme <name>      테마 변경
+  tasklet mascot <name>     캐릭터 변경
 `
 
 func main() {
@@ -33,12 +40,27 @@ func main() {
 		err = cmdList(os.Args[2:])
 	case "done":
 		err = cmdDone(os.Args[2:])
+	case "menu":
+		err = cmdMenu()
+	case "prompt":
+		err = cmdPrompt()
+	case "edit":
+		err = cmdEdit(os.Args[2:])
+	case "due":
+		err = cmdDue(os.Args[2:])
+	case "theme":
+		err = cmdSetting("theme", os.Args[2:])
+	case "mascot":
+		err = cmdSetting("mascot", os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return
 	default:
 		fmt.Fprintf(os.Stderr, "모르는 명령: %s\n\n%s", os.Args[1], usage)
 		os.Exit(2)
+	}
+	if errors.Is(err, errCancelled) {
+		return // 사용자가 취소한 것은 오류가 아니다
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "오류:", err)
@@ -51,10 +73,28 @@ func cmdAdd(args []string) error {
 	if sentence == "" {
 		return fmt.Errorf(`추가할 문장이 없다. 예: tasklet add "화요일까지 회원가입 개발"`)
 	}
-	if err := parse.LookupClaude(); err != nil {
+	res, resolved, err := interpret(sentence)
+	if err != nil {
 		return err
 	}
+	id, err := saveNew(sentence, res, resolved)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%d번 추가: %s\n", id, describe(taskOf(sentence, res, resolved), time.Now()))
+	// 확인창은 prompt·edit에서 띄운다. 터미널에서는 이유만 알린다 (DESIGN.md 8장).
+	for _, r := range parse.Reasons(sentence, res, resolved) {
+		fmt.Printf("  · %s\n", r)
+	}
+	return nil
+}
 
+// interpret은 문장 하나를 Haiku로 보내 기한까지 계산한다.
+// 실패해도 크래시 없이 기본값으로 내려간다 (DESIGN.md 6장 방어 코드).
+func interpret(sentence string) (parse.Result, parse.Resolved, error) {
+	if err := parse.LookupClaude(); err != nil {
+		return parse.Result{}, parse.Resolved{}, err
+	}
 	today := time.Now()
 	res, err := parse.Extract(context.Background(), sentence, today)
 	if err != nil {
@@ -73,27 +113,26 @@ func cmdAdd(args []string) error {
 		res.Unsure = true
 	}
 
-	task := store.Task{
+	return res, resolved, nil
+}
+
+func taskOf(sentence string, res parse.Result, resolved parse.Resolved) store.Task {
+	return store.Task{
 		Title:     res.Title,
 		Requester: strPtr(res.From),
 		DueAt:     datePtr(resolved.Date),
 		Raw:       sentence,
-		CreatedAt: today,
+		CreatedAt: time.Now(),
 	}
-	var id int
-	if err := store.Update(func(f *store.File) error {
-		id = f.Add(task)
-		return nil
-	}); err != nil {
-		return err
-	}
+}
 
-	fmt.Printf("%d번 추가: %s\n", id, describe(task, today))
-	// 확인창은 메뉴에서 띄운다. 터미널에서는 이유만 알린다 (DESIGN.md 8장).
-	for _, r := range parse.Reasons(sentence, res, resolved) {
-		fmt.Printf("  · %s\n", r)
-	}
-	return nil
+func saveNew(sentence string, res parse.Result, resolved parse.Resolved) (int, error) {
+	var id int
+	err := store.Update(func(f *store.File) error {
+		id = f.Add(taskOf(sentence, res, resolved))
+		return nil
+	})
+	return id, err
 }
 
 func cmdList(args []string) error {
