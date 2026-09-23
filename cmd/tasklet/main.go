@@ -25,9 +25,15 @@ const usage = `사용법:
   tasklet due <id> <spec>   기한만 변경 (+0d +1d eow next_eow none ...)
   tasklet theme <name>      테마 변경
   tasklet mascot <name>     캐릭터 변경
+  tasklet state --json      화면(SwiftUI)이 읽는 상태 JSON
+  --json                    add·done·due·edit·theme·mascot에 붙이면 결과를 상태 JSON으로 낸다
 `
 
+// jsonMode면 결과를 사람이 읽는 줄 대신 화면(SwiftUI)이 읽는 JSON으로 낸다.
+var jsonMode bool
+
 func main() {
+	os.Args = takeJSONFlag(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
@@ -42,6 +48,8 @@ func main() {
 		err = cmdDone(os.Args[2:])
 	case "menu":
 		err = cmdMenu()
+	case "state":
+		err = cmdState()
 	case "prompt":
 		err = cmdPrompt()
 	case "edit":
@@ -63,9 +71,26 @@ func main() {
 		return // 사용자가 취소한 것은 오류가 아니다
 	}
 	if err != nil {
+		if jsonMode {
+			jsonError(err)
+			os.Exit(1)
+		}
 		fmt.Fprintln(os.Stderr, "오류:", err)
 		os.Exit(1)
 	}
+}
+
+// takeJSONFlag는 어디에 있어도 --json을 빼내고 jsonMode를 켠다.
+func takeJSONFlag(args []string) []string {
+	out := args[:0:0]
+	for _, a := range args {
+		if a == "--json" {
+			jsonMode = true
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 func cmdAdd(args []string) error {
@@ -81,9 +106,17 @@ func cmdAdd(args []string) error {
 	if err != nil {
 		return err
 	}
+	reasons := parse.Reasons(sentence, res, resolved)
+	if jsonMode {
+		f, rerr := store.Read()
+		if rerr != nil {
+			return rerr
+		}
+		return printState(f, reasons, id)
+	}
 	fmt.Printf("%d번 추가: %s\n", id, describe(taskOf(sentence, res, resolved), time.Now()))
 	// 확인창은 prompt·edit에서 띄운다. 터미널에서는 이유만 알린다 (DESIGN.md 8장).
-	for _, r := range parse.Reasons(sentence, res, resolved) {
+	for _, r := range reasons {
 		fmt.Printf("  · %s\n", r)
 	}
 	return nil
@@ -178,6 +211,13 @@ func cmdDone(args []string) error {
 		return f.Complete(id, time.Now())
 	}); err != nil {
 		return err
+	}
+	if jsonMode {
+		f, err := store.Read()
+		if err != nil {
+			return err
+		}
+		return printState(f, nil, id)
 	}
 	fmt.Printf("%d번 완료: %s\n", id, title)
 	return nil

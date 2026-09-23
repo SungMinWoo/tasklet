@@ -50,14 +50,47 @@ func cmdEdit(args []string) error {
 	if t == nil {
 		return fmt.Errorf("%d번 할 일이 없다", id)
 	}
-	sentence, err := ask("고쳐 쓰기", t.Raw)
-	if err != nil {
-		return err
+
+	// 팝오버는 이미 입력을 받았으므로 --sentence로 넘긴다. 창을 띄우지 않는다.
+	sentence, given := flagValue(args, "--sentence")
+	if !given {
+		sentence, err = ask("고쳐 쓰기", t.Raw)
+		if err != nil {
+			return err
+		}
 	}
+	sentence = strings.TrimSpace(sentence)
 	if sentence == "" || sentence == t.Raw {
 		return nil
 	}
+	if jsonMode {
+		res, resolved, err := interpret(sentence)
+		if err != nil {
+			return err
+		}
+		if err := save(sentence, res, resolved, id); err != nil {
+			return err
+		}
+		f, err := store.Read()
+		if err != nil {
+			return err
+		}
+		return printState(f, parse.Reasons(sentence, res, resolved), id)
+	}
 	return addInteractive(sentence, id)
+}
+
+// flagValue는 "--name 값" 또는 "--name=값"을 찾는다.
+func flagValue(args []string, name string) (string, bool) {
+	for i, a := range args {
+		if a == name && i+1 < len(args) {
+			return args[i+1], true
+		}
+		if v, ok := strings.CutPrefix(a, name+"="); ok {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 // addInteractive는 입력 문장을 해석해 저장한다.
@@ -99,7 +132,9 @@ func save(sentence string, res parse.Result, resolved parse.Resolved, id int) er
 		if err != nil {
 			return err
 		}
-		notify(fmt.Sprintf("%d번 추가: %s", newID, summary(res, resolved)))
+		if !jsonMode { // 팝오버가 화면에 직접 보여주므로 알림이 필요 없다 (자동화 권한 요청 회피)
+			notify(fmt.Sprintf("%d번 추가: %s", newID, summary(res, resolved)))
+		}
 		return nil
 	}
 	// 수정: id·상태·만든 시각은 유지하고 내용만 갈아끼운다 (DESIGN.md 8장).
@@ -117,7 +152,9 @@ func save(sentence string, res parse.Result, resolved parse.Resolved, id int) er
 	if err != nil {
 		return err
 	}
-	notify(fmt.Sprintf("%d번 수정: %s", id, summary(res, resolved)))
+	if !jsonMode {
+		notify(fmt.Sprintf("%d번 수정: %s", id, summary(res, resolved)))
+	}
 	return nil
 }
 
@@ -160,6 +197,13 @@ func cmdDue(args []string) error {
 	}); err != nil {
 		return err
 	}
+	if jsonMode {
+		f, err := store.Read()
+		if err != nil {
+			return err
+		}
+		return printState(f, nil, id)
+	}
 	fmt.Printf("%d번 기한: %s · %s\n", id, title, dueLabel(datePtr(resolved.Date), time.Now()))
 	return nil
 }
@@ -196,6 +240,13 @@ func cmdSetting(kind string, args []string) error {
 	}
 	if err := store.SaveConfig(c); err != nil {
 		return err
+	}
+	if jsonMode {
+		f, err := store.Read()
+		if err != nil {
+			return err
+		}
+		return printState(f, nil, 0)
 	}
 	fmt.Printf("%s: %s\n", kind, name)
 	return nil
