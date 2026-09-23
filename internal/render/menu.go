@@ -85,6 +85,10 @@ func bucketLine(key BucketKey, n int, th Theme) string {
 		if n > 0 {
 			line += " color=" + th.Soon.Param()
 		}
+	case Later:
+		if n > 0 {
+			line += " color=" + th.Later.Param()
+		}
 	}
 	return line + "\n"
 }

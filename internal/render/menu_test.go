@@ -81,8 +81,8 @@ func TestMenuStructure(t *testing.T) {
 		`------내일 | bash="/x/tasklet" param1=due param2=3 param3=+1d`,
 		`------기한 없음 | bash="/x/tasklet" param1=due param2=3 param3=none`,
 		`+ 추가하기 | bash="/x/tasklet" param1=prompt`,
-		"--✓ 원 포인트 | ",
-		"--   타이드 | ",
+		"--✓ 잉걸 | ",
+		"--   물빛 | ",
 		"--✓ 돼지 | ",
 	} {
 		if !strings.Contains(out, want) {

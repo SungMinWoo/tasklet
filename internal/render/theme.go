@@ -5,28 +5,33 @@ type Color struct{ Light, Dark string }
 
 func (c Color) Param() string { return c.Light + "," + c.Dark }
 
-// Theme은 테마 하나의 색 네 가지 (DESIGN.md 7장).
+// Theme은 테마 하나의 색. 이름과 색이 어긋나지 않게 맞춘다 (2026-09-23).
 type Theme struct {
-	Key, Name                  string
-	Late, TodayC, Soon, Accent Color
+	Key, Name                         string
+	Late, TodayC, Soon, Later, Accent Color
 }
 
 var Themes = []Theme{
-	{"tide", "타이드",
+	{"tide", "물빛", // 청록 물빛에 코랄 포인트
 		Color{"#D9573F", "#FF8B76"}, Color{"#0B8583", "#4FD1CC"},
-		Color{"#5F948D", "#86BDB6"}, Color{"#0B8583", "#4FD1CC"}},
-	{"dusk", "더스크",
-		Color{"#D0632F", "#FF9B6A"}, Color{"#6444D0", "#A791FF"},
-		Color{"#8878B8", "#A79CD6"}, Color{"#6444D0", "#A791FF"}},
-	{"moss", "모스",
-		Color{"#C4531A", "#FF8C4A"}, Color{"#437A22", "#93D063"},
-		Color{"#83865A", "#B7B98A"}, Color{"#437A22", "#93D063"}},
-	{"pop", "팝",
-		Color{"#C8286A", "#FF6FA8"}, Color{"#9A6B00", "#F2C53D"},
-		Color{"#8A7A5C", "#C2AF86"}, Color{"#C8286A", "#FF6FA8"}},
-	{"mono", "원 포인트",
+		Color{"#5F948D", "#86BDB6"}, Color{"#8FA3A1", "#6E8481"},
+		Color{"#0B8583", "#4FD1CC"}},
+	{"dusk", "노을", // 해질 때 하늘 — 붉은 노을과 주황
+		Color{"#C0392B", "#FF7F6E"}, Color{"#E2662A", "#FFA05C"},
+		Color{"#C58E6A", "#E0B48C"}, Color{"#A08C7E", "#8A776B"},
+		Color{"#E2662A", "#FFA05C"}},
+	{"moss", "쑥빛", // 이끼 초록에 탄 주황
+		Color{"#C4531A", "#FF8C4A"}, Color{"#4F7F2A", "#93D063"},
+		Color{"#83865A", "#B7B98A"}, Color{"#8E9179", "#787B66"},
+		Color{"#4F7F2A", "#93D063"}},
+	{"pop", "진달래", // 진달래 분홍이 주인공
+		Color{"#C0392B", "#FF8574"}, Color{"#D2417E", "#FF7FB4"},
+		Color{"#A8748C", "#C9A0B4"}, Color{"#9C8A93", "#85737C"},
+		Color{"#D2417E", "#FF7FB4"}},
+	{"mono", "잉걸", // 재 속에 숯불 하나
 		Color{"#E8590C", "#FF7B33"}, Color{"#1D1D1F", "#F2F2F4"},
-		Color{"#8A8D94", "#8E9198"}, Color{"#E8590C", "#FF7B33"}},
+		Color{"#8A8D94", "#8E9198"}, Color{"#A9ACB2", "#72767D"},
+		Color{"#E8590C", "#FF7B33"}},
 }
 
 // ThemeByKey는 모르는 키면 기본 테마(mono)를 돌려준다.

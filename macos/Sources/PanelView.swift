@@ -9,7 +9,12 @@ struct PanelView: View {
     @State private var editDraft = ""
     @FocusState private var focused: Bool
 
-    private let width: CGFloat = 348
+    // 사용자가 오른쪽 아래를 끌어 조절한 크기. 기기별 취향이라 UserDefaults에 둔다.
+    @AppStorage("panelWidth") private var width: Double = 348
+    @AppStorage("panelListHeight") private var listHeight: Double = 360
+
+    private static let widthRange: ClosedRange<Double> = 280...560
+    private static let heightRange: ClosedRange<Double> = 160...620
 
     var body: some View {
         VStack(spacing: 0) {
@@ -120,7 +125,8 @@ struct PanelView: View {
             }
             .padding(.bottom, 4)
         }
-        .frame(maxHeight: 360)
+        // 높이를 고정한다. maxHeight만 주면 내용이 짧을 때 세로로 늘어나지 않는다.
+        .frame(height: listHeight)
     }
 
     private func confirmCard(_ pending: (id: Int, reasons: [String])) -> some View {
@@ -184,10 +190,30 @@ struct PanelView: View {
                 }
                 Spacer()
                 settingsMenu
+                resizeGrip
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    /// 오른쪽 아래를 끌어 팝오버 크기를 바꾼다. 놓으면 그 크기가 기억된다.
+    private var resizeGrip: some View {
+        Image(systemName: "arrow.up.left.and.arrow.down.right")
+            .font(.system(size: 9, weight: .bold))
+            .foregroundStyle(.secondary.opacity(0.7))
+            .frame(width: 16, height: 16)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        width = min(max(width + value.translation.width / 6, Self.widthRange.lowerBound),
+                                    Self.widthRange.upperBound)
+                        listHeight = min(max(listHeight + value.translation.height / 3, Self.heightRange.lowerBound),
+                                         Self.heightRange.upperBound)
+                    }
+            )
+            .help("끌어서 크기 조절")
     }
 
     private func inputRow(placeholder: String, text: Binding<String>, hint: String?,
@@ -325,61 +351,5 @@ struct TaskRow: View {
         .padding(.vertical, 6)
         .background(showActions ? Color.primary.opacity(0.07) : Color.clear)
         .onHover { hovering = $0 }
-    }
-}
-
-
-/// 기한 고르기 — 진짜 달력에서 날짜를 찍는다. 자주 쓰는 값은 위에 버튼으로.
-struct DuePicker: View {
-    let task: Item
-    @ObservedObject var store: Store
-    let done: () -> Void
-
-    @State private var date = Date()
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                quick("오늘", "+0d")
-                quick("내일", "+1d")
-                quick("금요일", "eow")
-                quick("다음 주", "next_eow")
-            }
-            DatePicker("", selection: $date, displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .frame(width: 260, height: 240)
-            HStack {
-                Button("기한 없음") {
-                    store.setDue(task.id, "none")
-                    done()
-                }
-                .buttonStyle(.bordered).controlSize(.small)
-                Spacer()
-                Button("이 날짜로") {
-                    let f = DateFormatter()
-                    f.dateFormat = "yyyy-MM-dd"
-                    store.setDue(task.id, f.string(from: date))
-                    done()
-                }
-                .buttonStyle(.borderedProminent).controlSize(.small)
-            }
-        }
-        .padding(12)
-        .onAppear {
-            // 기한이 있으면 그 날짜에서 시작한다.
-            let f = DateFormatter()
-            f.dateFormat = "yyyy-MM-dd"
-            if let d = f.date(from: task.dueAt) { date = d }
-        }
-    }
-
-    private func quick(_ label: String, _ spec: String) -> some View {
-        Button(label) {
-            store.setDue(task.id, spec)
-            done()
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
     }
 }

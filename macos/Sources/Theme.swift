@@ -7,24 +7,31 @@ struct Theme {
     let late: DualColor
     let today: DualColor
     let soon: DualColor
+    let later: DualColor
     let accent: DualColor
 
+    // 값은 internal/render/theme.go와 같아야 한다.
     static let all: [Theme] = [
-        Theme(key: "tide", name: "타이드",
+        Theme(key: "tide", name: "물빛",
               late: .init("#D9573F", "#FF8B76"), today: .init("#0B8583", "#4FD1CC"),
-              soon: .init("#5F948D", "#86BDB6"), accent: .init("#0B8583", "#4FD1CC")),
-        Theme(key: "dusk", name: "더스크",
-              late: .init("#D0632F", "#FF9B6A"), today: .init("#6444D0", "#A791FF"),
-              soon: .init("#8878B8", "#A79CD6"), accent: .init("#6444D0", "#A791FF")),
-        Theme(key: "moss", name: "모스",
-              late: .init("#C4531A", "#FF8C4A"), today: .init("#437A22", "#93D063"),
-              soon: .init("#83865A", "#B7B98A"), accent: .init("#437A22", "#93D063")),
-        Theme(key: "pop", name: "팝",
-              late: .init("#C8286A", "#FF6FA8"), today: .init("#9A6B00", "#F2C53D"),
-              soon: .init("#8A7A5C", "#C2AF86"), accent: .init("#C8286A", "#FF6FA8")),
-        Theme(key: "mono", name: "원 포인트",
+              soon: .init("#5F948D", "#86BDB6"), later: .init("#8FA3A1", "#6E8481"),
+              accent: .init("#0B8583", "#4FD1CC")),
+        Theme(key: "dusk", name: "노을",
+              late: .init("#C0392B", "#FF7F6E"), today: .init("#E2662A", "#FFA05C"),
+              soon: .init("#C58E6A", "#E0B48C"), later: .init("#A08C7E", "#8A776B"),
+              accent: .init("#E2662A", "#FFA05C")),
+        Theme(key: "moss", name: "쑥빛",
+              late: .init("#C4531A", "#FF8C4A"), today: .init("#4F7F2A", "#93D063"),
+              soon: .init("#83865A", "#B7B98A"), later: .init("#8E9179", "#787B66"),
+              accent: .init("#4F7F2A", "#93D063")),
+        Theme(key: "pop", name: "진달래",
+              late: .init("#C0392B", "#FF8574"), today: .init("#D2417E", "#FF7FB4"),
+              soon: .init("#A8748C", "#C9A0B4"), later: .init("#9C8A93", "#85737C"),
+              accent: .init("#D2417E", "#FF7FB4")),
+        Theme(key: "mono", name: "잉걸",
               late: .init("#E8590C", "#FF7B33"), today: .init("#1D1D1F", "#F2F2F4"),
-              soon: .init("#8A8D94", "#8E9198"), accent: .init("#E8590C", "#FF7B33")),
+              soon: .init("#8A8D94", "#8E9198"), later: .init("#A9ACB2", "#72767D"),
+              accent: .init("#E8590C", "#FF7B33")),
     ]
 
     static func byKey(_ key: String) -> Theme {
@@ -36,7 +43,7 @@ struct Theme {
         case .past: return late
         case .today: return today
         case .tomorrow, .this_week: return soon
-        case .later: return .init("#9B9EA6", "#7E828B")
+        case .later: return later
         }
     }
 }
