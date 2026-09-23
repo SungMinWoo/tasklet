@@ -13,5 +13,6 @@
   - {"kind":"date","value":"DD | MM-DD | YYYY-MM-DD"}  문장에 적힌 숫자만 옮겨라. "25일까지" → "25" (월을 추측해 붙이지 마라), "10/2까지" → "10-02"
   - {"kind":"none","value":null}  기한 없음
   - "2일 걸리는", "3일짜리"처럼 걸리는 기간은 기한이 아니다. 기한 표현이 따로 없으면 none. 기간인지 기한인지 헷갈리면 unsure를 true로.
+  - kind는 위 8개 값 중 하나여야 한다. 애매하면 kind를 지어내지 말고 none으로 두고 unsure를 true로 하라.
 - priority: "high" 또는 "normal". 급하다는 표현이 있을 때만 high.
 - unsure: 할 일이나 기한이 두 가지 이상으로 읽히거나, 기한이 위 kind 어디에도 딱 맞지 않으면 true. 확실하면 false.
