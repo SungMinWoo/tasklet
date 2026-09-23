@@ -81,12 +81,17 @@ final class Store: ObservableObject {
     private var timer: Timer?
 
     init() {
-        // .app 안에서 실행되므로 저장소의 bin/tasklet을 절대 경로로 찾는다.
-        if let env = ProcessInfo.processInfo.environment["TASKLET_BIN"], !env.isEmpty {
-            exe = env
-        } else {
-            exe = NSHomeDirectory() + "/Desktop/git/tasklet/bin/tasklet"
-        }
+        // .app 안에서 실행되므로 CLI를 절대 경로로 찾는다.
+        // ~/Desktop 아래에 있으면 macOS가 폴더 접근 권한을 매번 묻기 때문에
+        // 설치본(~/.local/bin)을 먼저 본다 (macos/install.sh).
+        let candidates = [
+            ProcessInfo.processInfo.environment["TASKLET_BIN"] ?? "",
+            NSHomeDirectory() + "/.local/bin/tasklet",
+            "/usr/local/bin/tasklet",
+            NSHomeDirectory() + "/Desktop/git/tasklet/bin/tasklet",
+        ]
+        exe = candidates.first { !$0.isEmpty && FileManager.default.isExecutableFile(atPath: $0) }
+            ?? candidates[1]
         reload()
         // 파일이 밖에서 바뀔 수도 있으니(터미널에서 add 등) 주기적으로 다시 읽는다.
         timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
