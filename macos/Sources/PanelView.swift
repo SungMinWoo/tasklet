@@ -288,9 +288,10 @@ struct TaskRow: View {
     @Environment(\.colorScheme) private var scheme
     @State private var hovering = false
     @State private var picking = false
+    @State private var confirmingDelete = false
 
-    // 달력이 열려 있는 동안에는 마우스가 벗어나도 버튼을 유지한다.
-    private var showActions: Bool { hovering || picking }
+    // 달력·삭제 확인이 열려 있는 동안에는 마우스가 벗어나도 버튼을 유지한다.
+    private var showActions: Bool { hovering || picking || confirmingDelete }
 
     var body: some View {
         HStack(spacing: 9) {
@@ -342,6 +343,16 @@ struct TaskRow: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
                     .help("고쳐 쓰기")
+
+                    Button { confirmingDelete = true } label: {
+                        Image(systemName: "trash").font(.system(size: 12))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("삭제")
+                    .popover(isPresented: $confirmingDelete, arrowEdge: .bottom) {
+                        deleteConfirm
+                    }
                 }
                 .opacity(showActions ? 1 : 0)
                 .allowsHitTesting(showActions)
@@ -351,5 +362,35 @@ struct TaskRow: View {
         .padding(.vertical, 6)
         .background(showActions ? Color.primary.opacity(0.07) : Color.clear)
         .onHover { hovering = $0 }
+    }
+
+    /// 삭제 확인 — 완료와 달리 되돌릴 수 없으므로 한 번 묻는다.
+    private var deleteConfirm: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text("삭제할까요?")
+                .font(.system(size: 12.5, weight: .medium))
+            Text(task.title)
+                .font(.system(size: 11.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Text("되돌릴 수 없습니다")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 7) {
+                Button("삭제") {
+                    confirmingDelete = false
+                    store.delete(task.id)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(store.theme.late.resolve(scheme))
+
+                Button("취소") { confirmingDelete = false }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            }
+        }
+        .padding(12)
+        .frame(width: 190, alignment: .leading)
     }
 }

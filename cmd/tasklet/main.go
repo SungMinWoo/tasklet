@@ -19,6 +19,7 @@ const usage = `사용법:
   tasklet list              남은 일 목록
   tasklet list --all        완료한 일까지
   tasklet done <id>         완료 처리
+  tasklet delete <id>       목록에서 지움 (되돌릴 수 없음)
   tasklet menu              SwiftBar 메뉴 출력
   tasklet prompt            입력창을 띄워 추가
   tasklet edit <id>         원래 문장을 고쳐 다시 파싱
@@ -26,7 +27,7 @@ const usage = `사용법:
   tasklet theme <name>      테마 변경
   tasklet mascot <name>     캐릭터 변경
   tasklet state --json      화면(SwiftUI)이 읽는 상태 JSON
-  --json                    add·done·due·edit·theme·mascot에 붙이면 결과를 상태 JSON으로 낸다
+  --json                    add·done·delete·due·edit·theme·mascot에 붙이면 결과를 상태 JSON으로 낸다
 `
 
 // jsonMode면 결과를 사람이 읽는 줄 대신 화면(SwiftUI)이 읽는 JSON으로 낸다.
@@ -46,6 +47,8 @@ func main() {
 		err = cmdList(os.Args[2:])
 	case "done":
 		err = cmdDone(os.Args[2:])
+	case "delete":
+		err = cmdDelete(os.Args[2:])
 	case "menu":
 		err = cmdMenu()
 	case "state":
@@ -220,6 +223,35 @@ func cmdDone(args []string) error {
 		return printState(f, nil, id)
 	}
 	fmt.Printf("%d번 완료: %s\n", id, title)
+	return nil
+}
+
+// cmdDelete는 할 일을 목록에서 지운다. 확인은 부르는 쪽(팝오버 🗑)에서 받는다.
+func cmdDelete(args []string) error {
+	id, err := idArg(args, "지울")
+	if err != nil {
+		return err
+	}
+	var title string
+	if err := store.Update(func(f *store.File) error {
+		t := f.Find(id)
+		if t == nil {
+			return fmt.Errorf("%d번 할 일이 없다", id)
+		}
+		title = t.Title
+		return f.Delete(id)
+	}); err != nil {
+		return err
+	}
+	if jsonMode {
+		f, err := store.Read()
+		if err != nil {
+			return err
+		}
+		// 지운 id는 더 이상 없으므로 changed로 넘기지 않는다.
+		return printState(f, nil, 0)
+	}
+	fmt.Printf("%d번 삭제: %s\n", id, title)
 	return nil
 }
 

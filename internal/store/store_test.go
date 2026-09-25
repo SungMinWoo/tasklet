@@ -74,6 +74,50 @@ func TestCompleteUnknownID(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	t.Setenv("TASKLET_HOME", t.TempDir())
+	var keep, drop int
+	if err := Update(func(f *File) error {
+		keep = f.Add(Task{Title: "남을 일", Raw: "원문1"})
+		drop = f.Add(Task{Title: "지울 일", Raw: "원문2"})
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Update(func(f *File) error { return f.Delete(drop) }); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f.Find(drop) != nil {
+		t.Errorf("%d번이 아직 남아 있다", drop)
+	}
+	if f.Find(keep) == nil {
+		t.Errorf("%d번까지 지워졌다", keep)
+	}
+	if len(f.Tasks) != 1 {
+		t.Errorf("할 일 %d개, want 1", len(f.Tasks))
+	}
+	// 지운 id를 다시 쓰지 않는다.
+	if f.NextID != 3 {
+		t.Errorf("next_id = %d, want 3", f.NextID)
+	}
+}
+
+func TestDeleteUnknownID(t *testing.T) {
+	t.Setenv("TASKLET_HOME", t.TempDir())
+	err := Update(func(f *File) error { return f.Delete(99) })
+	if err == nil {
+		t.Fatal("없는 id는 에러여야 한다")
+	}
+	if _, statErr := os.Stat(filepath.Join(Dir(), "tasks.json")); statErr == nil {
+		t.Error("fn이 에러를 내면 파일을 쓰지 않아야 한다")
+	}
+}
+
 func TestNullsInJSON(t *testing.T) {
 	t.Setenv("TASKLET_HOME", t.TempDir())
 	if err := Update(func(f *File) error {

@@ -113,6 +113,9 @@ final class Store: ObservableObject {
 
     func complete(_ id: Int) { run(["done", String(id)]) }
 
+    /// 삭제. 되돌릴 수 없으므로 확인은 행의 🗑 팝오버에서 받는다.
+    func delete(_ id: Int) { run(["delete", String(id)]) }
+
     func setDue(_ id: Int, _ spec: String) { run(["due", String(id), spec]) }
 
     func setTheme(_ key: String) { run(["theme", key]) }

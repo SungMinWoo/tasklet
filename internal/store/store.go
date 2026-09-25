@@ -130,6 +130,18 @@ func (f *File) Complete(id int, now time.Time) error {
 	return nil
 }
 
+// Delete는 할 일을 목록에서 지운다. 되돌릴 수 없다.
+// next_id는 줄이지 않는다 — 지운 id를 다시 쓰면 완료 이력과 헷갈린다.
+func (f *File) Delete(id int) error {
+	for i := range f.Tasks {
+		if f.Tasks[i].ID == id {
+			f.Tasks = append(f.Tasks[:i], f.Tasks[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("%d번 할 일이 없다", id)
+}
+
 // write는 같은 디렉토리 임시파일에 쓴 뒤 rename으로 바꾼다.
 // 읽는 쪽이 반쪽 파일을 보지 않게 하기 위함.
 func write(f *File) error {
