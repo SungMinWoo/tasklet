@@ -130,6 +130,18 @@ func (f *File) Complete(id int, now time.Time) error {
 	return nil
 }
 
+// Uncomplete는 완료를 취소한다. 실수로 완료한 것을 되돌릴 때 쓴다.
+// 완료한 적이 없으면 아무것도 하지 않는다.
+func (f *File) Uncomplete(id int) error {
+	t := f.Find(id)
+	if t == nil {
+		return fmt.Errorf("%d번 할 일이 없다", id)
+	}
+	t.Status = StatusTodo
+	t.DoneAt = nil
+	return nil
+}
+
 // Delete는 할 일을 목록에서 지운다. 되돌릴 수 없다.
 // next_id는 줄이지 않는다 — 지운 id를 다시 쓰면 완료 이력과 헷갈린다.
 func (f *File) Delete(id int) error {

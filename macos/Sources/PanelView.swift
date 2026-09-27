@@ -10,6 +10,7 @@ struct PanelView: View {
     @State private var batchMode = false   // 여러 줄 한 번에 넣기
     @State private var batchDraft = ""
     @State private var lastBatch = ""      // 방금 넣은 붙여넣기 원문 ('다시 쓰기'용)
+    @AppStorage("doneSectionOpen") private var doneOpen = false
     @FocusState private var focused: Bool
 
     // 사용자가 오른쪽 아래를 끌어 조절한 크기. 기기별 취향이라 UserDefaults에 둔다.
@@ -128,11 +129,42 @@ struct PanelView: View {
                         }
                     }
                 }
+                if !store.state.done.isEmpty {
+                    doneSection
+                }
             }
             .padding(.bottom, 4)
         }
         // 높이를 고정한다. maxHeight만 주면 내용이 짧을 때 세로로 늘어나지 않는다.
         .frame(height: listHeight)
+    }
+
+    /// 오늘 완료한 것. 기본은 접혀 있고, 펴면 되돌릴 수 있다.
+    /// 완료는 목록에서 사라지는 동작이라, 잘못 눌렀을 때 되돌릴 길이 여기밖에 없다.
+    private var doneSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                doneOpen.toggle()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: doneOpen ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9, weight: .bold))
+                    Text("오늘 완료 \(store.state.done.count)")
+                        .font(.system(size: 11.5, weight: .bold))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .padding(.top, 11).padding(.bottom, 2)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if doneOpen {
+                ForEach(store.state.done) { task in
+                    DoneRow(task: task, store: store)
+                }
+            }
+        }
     }
 
     /// Haiku를 기다리는 동안 목록 맨 위에. 발치의 작은 표시는 눈에 안 띈다.
@@ -378,7 +410,6 @@ struct PanelView: View {
                 }
             }
             Divider()
-            Button("새로 읽기") { store.reload() }
             Button("종료") { NSApplication.shared.terminate(nil) }
         } label: {
             Image(systemName: "gearshape")
@@ -393,6 +424,36 @@ struct PanelView: View {
         editing = task
         editDraft = task.raw
         focused = true
+    }
+}
+
+/// 완료한 일 한 줄. 마우스를 올리면 '되돌리기'가 나온다.
+struct DoneRow: View {
+    let task: Item
+    @ObservedObject var store: Store
+
+    @Environment(\.colorScheme) private var scheme
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+            TruncatableText(text: task.title, font: .system(size: 13))
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            if hovering {
+                Button("되돌리기") { store.uncomplete(task.id) }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11))
+                    .foregroundStyle(store.theme.accent.resolve(scheme))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 5)
+        .background(hovering ? Color.primary.opacity(0.07) : Color.clear)
+        .onHover { hovering = $0 }
     }
 }
 

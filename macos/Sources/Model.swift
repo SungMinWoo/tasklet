@@ -10,12 +10,16 @@ struct Item: Identifiable, Decodable, Equatable {
     let dueLabel: String
     let bucket: String
     let raw: String
+    var createdAt: String = ""   // RFC3339
+    var doneAt: String = ""      // RFC3339, 완료한 것만
 
     enum CodingKeys: String, CodingKey {
         case id, title, requester, raw
         case dueAt = "due_at"
         case dueLabel = "due_label"
         case bucket
+        case createdAt = "created_at"
+        case doneAt = "done_at"
     }
 
     // 키가 빠져 있어도 기본값으로 읽는다 (Go가 값을 생략할 수 있다).
@@ -28,6 +32,8 @@ struct Item: Identifiable, Decodable, Equatable {
         dueLabel = try c.decodeIfPresent(String.self, forKey: .dueLabel) ?? ""
         bucket = try c.decodeIfPresent(String.self, forKey: .bucket) ?? "later"
         raw = try c.decodeIfPresent(String.self, forKey: .raw) ?? ""
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt) ?? ""
+        doneAt = try c.decodeIfPresent(String.self, forKey: .doneAt) ?? ""
     }
 }
 
@@ -35,6 +41,7 @@ struct Item: Identifiable, Decodable, Equatable {
 struct Snapshot: Decodable, Equatable {
     var counts: [String: Int] = [:]
     var tasks: [Item] = []
+    var done: [Item] = []      // 오늘 완료한 것 (최근 순)
     var theme: String = "mono"
     var mascot: String = "duck"
     var reasons: [String] = []
@@ -42,12 +49,13 @@ struct Snapshot: Decodable, Equatable {
 
     init() {}
 
-    enum CodingKeys: String, CodingKey { case counts, tasks, theme, mascot, reasons, changed }
+    enum CodingKeys: String, CodingKey { case counts, tasks, done, theme, mascot, reasons, changed }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         counts = try c.decodeIfPresent([String: Int].self, forKey: .counts) ?? [:]
         tasks = try c.decodeIfPresent([Item].self, forKey: .tasks) ?? []
+        done = try c.decodeIfPresent([Item].self, forKey: .done) ?? []
         theme = try c.decodeIfPresent(String.self, forKey: .theme) ?? "mono"
         mascot = try c.decodeIfPresent(String.self, forKey: .mascot) ?? "duck"
         reasons = try c.decodeIfPresent([String].self, forKey: .reasons) ?? []
@@ -113,6 +121,9 @@ final class Store: ObservableObject {
     func reload() { run(["state"]) }
 
     func complete(_ id: Int) { run(["done", String(id)]) }
+
+    /// 완료 취소. '완료' 구역에서 잘못 누른 것을 되돌린다.
+    func uncomplete(_ id: Int) { run(["undone", String(id)]) }
 
     /// 삭제. 되돌릴 수 없으므로 확인은 행의 🗑 팝오버에서 받는다.
     func delete(_ id: Int) { run(["delete", String(id)]) }

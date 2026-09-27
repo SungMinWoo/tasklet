@@ -74,6 +74,35 @@ func TestCompleteUnknownID(t *testing.T) {
 	}
 }
 
+func TestUncomplete(t *testing.T) {
+	t.Setenv("TASKLET_HOME", t.TempDir())
+	var id int
+	if err := Update(func(f *File) error {
+		id = f.Add(Task{Title: "실수로 누른 일", Raw: "원문"})
+		return f.Complete(id, time.Now())
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := Update(func(f *File) error { return f.Uncomplete(id) }); err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := f.Find(id)
+	if got.Status != StatusTodo || got.DoneAt != nil {
+		t.Errorf("완료가 취소되지 않았다: %+v", got)
+	}
+	if got.Title != "실수로 누른 일" || got.CreatedAt.IsZero() {
+		t.Errorf("다른 필드가 바뀌었다: %+v", got)
+	}
+	if err := Update(func(f *File) error { return f.Uncomplete(99) }); err == nil {
+		t.Error("없는 id는 에러여야 한다")
+	}
+}
+
 func TestDelete(t *testing.T) {
 	t.Setenv("TASKLET_HOME", t.TempDir())
 	var keep, drop int

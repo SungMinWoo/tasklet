@@ -20,6 +20,7 @@ const usage = `사용법:
   tasklet list              남은 일 목록
   tasklet list --all        완료한 일까지
   tasklet done <id>         완료 처리
+  tasklet undone <id>       완료 취소
   tasklet delete <id>...    목록에서 지움 (여러 개 가능, 되돌릴 수 없음)
   tasklet prompt            입력창을 띄워 추가 (터미널용)
   tasklet edit <id>         원래 문장을 고쳐 다시 파싱
@@ -27,7 +28,7 @@ const usage = `사용법:
   tasklet theme <name>      테마 변경
   tasklet mascot <name>     캐릭터 변경
   tasklet state --json      화면(SwiftUI)이 읽는 상태 JSON
-  --json                    add·done·delete·due·edit·theme·mascot에 붙이면 결과를 상태 JSON으로 낸다
+  --json                    add·done·undone·delete·due·edit·theme·mascot에 붙이면 결과를 상태 JSON으로 낸다
 `
 
 // jsonMode면 결과를 사람이 읽는 줄 대신 화면(SwiftUI)이 읽는 JSON으로 낸다.
@@ -47,6 +48,8 @@ func main() {
 		err = cmdList(os.Args[2:])
 	case "done":
 		err = cmdDone(os.Args[2:])
+	case "undone":
+		err = cmdUndone(os.Args[2:])
 	case "delete":
 		err = cmdDelete(os.Args[2:])
 	case "state":
@@ -224,6 +227,34 @@ func cmdDone(args []string) error {
 		return printState(f, nil, id)
 	}
 	fmt.Printf("%d번 완료: %s\n", id, title)
+	return nil
+}
+
+// cmdUndone은 완료를 취소한다. 팝오버의 '완료' 구역에서 되돌릴 때 부른다.
+func cmdUndone(args []string) error {
+	id, err := idArg(args, "완료를 취소할")
+	if err != nil {
+		return err
+	}
+	var title string
+	if err := store.Update(func(f *store.File) error {
+		t := f.Find(id)
+		if t == nil {
+			return fmt.Errorf("%d번 할 일이 없다", id)
+		}
+		title = t.Title
+		return f.Uncomplete(id)
+	}); err != nil {
+		return err
+	}
+	if jsonMode {
+		f, err := store.Read()
+		if err != nil {
+			return err
+		}
+		return printState(f, nil, id)
+	}
+	fmt.Printf("%d번 완료 취소: %s\n", id, title)
 	return nil
 }
 
