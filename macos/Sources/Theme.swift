@@ -10,7 +10,7 @@ struct Theme {
     let later: DualColor
     let accent: DualColor
 
-    // 값은 internal/render/theme.go와 같아야 한다.
+    // 값은 DESIGN.md 7장 테마 표와 같아야 한다 (색을 쓰는 곳은 이제 여기뿐).
     static let all: [Theme] = [
         Theme(key: "tide", name: "물빛",
               late: .init("#D9573F", "#FF8B76"), today: .init("#0B8583", "#4FD1CC"),

@@ -2,29 +2,15 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/SungMinWoo/tasklet/internal/parse"
-	"github.com/SungMinWoo/tasklet/internal/render"
 	"github.com/SungMinWoo/tasklet/internal/store"
 )
 
-// cmdMenu는 SwiftBar가 10초마다 부른다. 절대 빈손으로 끝내지 않는다.
-func cmdMenu() error {
-	f, err := store.Read()
-	if err != nil {
-		// 파일이 깨져도 메뉴는 떠야 한다.
-		fmt.Printf("읽기 실패 | color=red\n---\n%s\n", err)
-		return nil
-	}
-	fmt.Print(render.Menu(f, store.LoadConfig(), time.Now(), exePath()))
-	return nil
-}
-
-// cmdPrompt는 '+ 추가하기'. 입력창 → 파싱 → 애매하면 확인창 → 저장.
+// cmdPrompt는 터미널에서 입력창을 띄워 추가한다. 파싱 → 애매하면 확인창 → 저장.
 func cmdPrompt() error {
 	sentence, err := ask("할 일을 한 줄로 적어주세요", "")
 	if err != nil {
@@ -277,13 +263,4 @@ func idArg(args []string, what string) (int, error) {
 		return 0, fmt.Errorf("id는 숫자여야 한다: %q", args[0])
 	}
 	return id, nil
-}
-
-// exePath는 메뉴의 클릭 동작에 넣을 실행 파일 경로.
-func exePath() string {
-	p, err := os.Executable()
-	if err != nil {
-		return "tasklet"
-	}
-	return p
 }

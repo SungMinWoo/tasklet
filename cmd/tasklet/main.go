@@ -21,8 +21,7 @@ const usage = `사용법:
   tasklet list --all        완료한 일까지
   tasklet done <id>         완료 처리
   tasklet delete <id>...    목록에서 지움 (여러 개 가능, 되돌릴 수 없음)
-  tasklet menu              SwiftBar 메뉴 출력
-  tasklet prompt            입력창을 띄워 추가
+  tasklet prompt            입력창을 띄워 추가 (터미널용)
   tasklet edit <id>         원래 문장을 고쳐 다시 파싱
   tasklet due <id> <spec>   기한만 변경 (+0d +1d eow next_eow none ...)
   tasklet theme <name>      테마 변경
@@ -50,8 +49,6 @@ func main() {
 		err = cmdDone(os.Args[2:])
 	case "delete":
 		err = cmdDelete(os.Args[2:])
-	case "menu":
-		err = cmdMenu()
 	case "state":
 		err = cmdState()
 	case "prompt":
