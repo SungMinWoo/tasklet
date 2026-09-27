@@ -35,13 +35,34 @@ const Timeout = 40 * time.Second
 
 var weekdayKoShort = [...]string{"일", "월", "화", "수", "목", "금", "토"}
 
-// Extract는 문장 하나를 Haiku로 보내 업무를 뽑는다.
-// 호출 방식은 DESIGN.md 6장 '호출 방식'과 같아야 한다.
+// Extract는 문장 하나를 Haiku로 보내 업무 하나를 뽑는다.
 func Extract(ctx context.Context, sentence string, today time.Time) (Result, error) {
+	out, err := call(ctx, sentence, today, "JSON 객체 하나만 출력하라. 설명·코드펜스 금지.")
+	if err != nil {
+		return Result{}, err
+	}
+	return parseResult(out)
+}
+
+// ExtractMany는 줄 하나에서 업무를 여러 개까지 뽑는다 ('한 번에 넣기', DESIGN.md 6장).
+// 필드 규칙은 Extract와 같은 prompt.txt를 쓰고, 출력 형태만 배열로 바꾼다.
+func ExtractMany(ctx context.Context, sentence string, today time.Time) ([]Result, error) {
+	out, err := call(ctx, sentence, today,
+		"JSON 배열만 출력하라. 서로 다른 업무가 섞여 있으면 객체를 여러 개 담고, 하나면 객체 하나만 담아라. 설명·코드펜스 금지.")
+	if err != nil {
+		return nil, err
+	}
+	return parseResults(out)
+}
+
+// call은 claude CLI를 부르고 모델 답변 문자열을 돌려준다.
+// 호출 방식은 DESIGN.md 6장 '호출 방식'과 같아야 한다.
+// tail은 출력 형태 지시 — 필드 규칙(prompt.txt)은 건드리지 않는다.
+func call(ctx context.Context, sentence string, today time.Time, tail string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
 	defer cancel()
 
-	prompt := systemPrompt + "\nJSON 객체 하나만 출력하라. 설명·코드펜스 금지."
+	prompt := systemPrompt + "\n" + tail
 	msg := fmt.Sprintf("오늘은 %s(%s)이다. 문장: %s",
 		today.Format(time.DateOnly), weekdayKoShort[today.Weekday()], sentence)
 
@@ -58,17 +79,17 @@ func Extract(ctx context.Context, sentence string, today time.Time) (Result, err
 
 	out, err := cmd.Output()
 	if err != nil {
-		return Result{}, fmt.Errorf("claude 실행 실패: %w (%s)", err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("claude 실행 실패: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 
 	var m meta
 	if err := json.Unmarshal(out, &m); err != nil {
-		return Result{}, fmt.Errorf("claude 응답이 JSON이 아니다: %w", err)
+		return "", fmt.Errorf("claude 응답이 JSON이 아니다: %w", err)
 	}
 	if m.IsError || m.Subtype != "success" {
-		return Result{}, fmt.Errorf("claude 실패: subtype=%s", m.Subtype)
+		return "", fmt.Errorf("claude 실패: subtype=%s", m.Subtype)
 	}
-	return parseResult(m.Result)
+	return m.Result, nil
 }
 
 // parseResult는 모델 답변 문자열에서 JSON만 잘라 읽는다.
@@ -86,6 +107,44 @@ func parseResult(s string) (Result, error) {
 		return Result{}, fmt.Errorf("title이 비었다: %q", truncate(s, 80))
 	}
 	return r, nil
+}
+
+// parseResults는 답변에서 JSON 배열을 잘라 읽는다.
+// 여러 개를 요청해도 객체 하나로 답하는 일이 있어, 그때는 한 건으로 받는다.
+func parseResults(s string) ([]Result, error) {
+	a := strings.IndexAny(s, "[{")
+	if a < 0 {
+		return nil, fmt.Errorf("답변에 JSON이 없다: %q", truncate(s, 80))
+	}
+	if s[a] == '{' {
+		r, err := parseResult(s)
+		if err != nil {
+			return nil, err
+		}
+		return []Result{r}, nil
+	}
+
+	b := strings.LastIndex(s, "]")
+	if b < a {
+		return nil, fmt.Errorf("답변의 배열이 닫히지 않았다: %q", truncate(s, 80))
+	}
+	var rs []Result
+	if err := json.Unmarshal([]byte(s[a:b+1]), &rs); err != nil {
+		return nil, fmt.Errorf("답변 JSON 파싱 실패: %w (%q)", err, truncate(s, 80))
+	}
+
+	var out []Result
+	for _, r := range rs {
+		// 빈 객체나 title 없는 항목을 끼워 넣는 일이 있다. 조용히 버린다.
+		if strings.TrimSpace(r.Title) == "" {
+			continue
+		}
+		out = append(out, r)
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("업무를 찾지 못했다: %q", truncate(s, 80))
+	}
+	return out, nil
 }
 
 // Fallback은 파싱이 실패했을 때 쓸 기본값 (DESIGN.md 6장 방어 코드 3번).

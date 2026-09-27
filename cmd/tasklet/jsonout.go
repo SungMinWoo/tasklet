@@ -28,7 +28,7 @@ type jsonState struct {
 	Theme   string         `json:"theme"`
 	Mascot  string         `json:"mascot"`
 	Reasons []string       `json:"reasons"` // 확인이 필요한 이유 (add·edit 직후)
-	Changed int            `json:"changed"` // 방금 추가·수정된 id
+	Changed []int          `json:"changed"` // 방금 추가·수정된 id (한 번에 넣기는 여러 개)
 }
 
 var bucketName = map[render.BucketKey]string{
@@ -42,10 +42,11 @@ func cmdState() error {
 	if err != nil {
 		return err
 	}
-	return printState(f, nil, 0)
+	return printState(f, nil)
 }
 
-func printState(f *store.File, reasons []string, changed int) error {
+// changed에는 방금 바뀐 id를 넘긴다. 없으면 생략한다.
+func printState(f *store.File, reasons []string, changed ...int) error {
 	cfg := store.LoadConfig()
 	now := time.Now()
 	buckets := render.Buckets(f.Tasks, now, cfg.WeekendDueBucket)

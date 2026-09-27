@@ -7,6 +7,8 @@ struct PanelView: View {
     @State private var draft = ""
     @State private var editing: Item?
     @State private var editDraft = ""
+    @State private var batchMode = false   // 여러 줄 한 번에 넣기
+    @State private var batchDraft = ""
     @FocusState private var focused: Bool
 
     // 사용자가 오른쪽 아래를 끌어 조절한 크기. 기기별 취향이라 UserDefaults에 둔다.
@@ -129,9 +131,13 @@ struct PanelView: View {
         .frame(height: listHeight)
     }
 
-    private func confirmCard(_ pending: (id: Int, reasons: [String])) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(store.state.tasks.first { $0.id == pending.id }.map(summaryText) ?? "저장했습니다")
+    private func confirmCard(_ pending: (ids: [Int], reasons: [String])) -> some View {
+        // 한 건이면 그 내용을, 여러 건이면 몇 건 들어갔는지 보여준다.
+        let single = pending.ids.count == 1
+            ? store.state.tasks.first { $0.id == pending.ids[0] }
+            : nil
+        return VStack(alignment: .leading, spacing: 7) {
+            Text(single.map(summaryText) ?? "\(pending.ids.count)건 추가했습니다")
                 .font(.system(size: 12.5, weight: .medium))
             ForEach(pending.reasons, id: \.self) { reason in
                 Text("· " + reason)
@@ -141,13 +147,13 @@ struct PanelView: View {
             HStack(spacing: 7) {
                 Button("맞아요") { store.pending = nil }
                     .buttonStyle(.borderedProminent).controlSize(.small)
-                Button("고쳐 쓰기") {
-                    if let task = store.state.tasks.first(where: { $0.id == pending.id }) {
+                if let task = single {
+                    Button("고쳐 쓰기") {
                         startEdit(task)
+                        store.pending = nil
                     }
-                    store.pending = nil
+                    .buttonStyle(.bordered).controlSize(.small)
                 }
-                .buttonStyle(.bordered).controlSize(.small)
             }
         }
         .padding(10)
@@ -175,6 +181,8 @@ struct PanelView: View {
                         store.edit(task.id, sentence: sentence)
                     }
                 }
+            } else if batchMode {
+                batchRow
             } else {
                 inputRow(placeholder: "할 일을 한 줄로", text: $draft, hint: nil) {
                     let sentence = draft.trimmingCharacters(in: .whitespaces)
@@ -189,12 +197,74 @@ struct PanelView: View {
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
+                if editing == nil { batchToggle }
                 settingsMenu
                 resizeGrip
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    /// 여러 줄 한 번에 넣기. 붙여넣은 글을 줄마다 한 건으로 만든다
+    /// (한 줄에 업무가 여러 개면 그 줄에서 여러 건이 나오므로 '줄'로만 센다).
+    private var batchRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            TextEditor(text: $batchDraft)
+                .font(.system(size: 13))
+                .scrollContentBackground(.hidden)
+                .focused($focused)
+                .frame(height: 88)
+                .padding(.horizontal, 6).padding(.vertical, 5)
+                .background(Color.primary.opacity(0.07))
+                .clipShape(RoundedRectangle(cornerRadius: 9))
+
+            HStack(spacing: 8) {
+                Text("한 줄에 하나씩 · ⌘⏎")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("취소") {
+                    batchMode = false
+                    batchDraft = ""
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+                Button(batchLines.isEmpty ? "추가" : "\(batchLines.count)줄 추가") {
+                    let text = batchDraft
+                    batchDraft = ""
+                    batchMode = false
+                    store.addBatch(text)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(batchLines.isEmpty)
+                .keyboardShortcut(.return, modifiers: .command)
+            }
+        }
+    }
+
+    /// 빈 줄을 뺀 줄 목록. 버튼에 개수를 보여주고 빈 입력을 막는 데 쓴다.
+    private var batchLines: [String] {
+        batchDraft.split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    private var batchToggle: some View {
+        Button {
+            batchMode.toggle()
+            focused = batchMode
+        } label: {
+            Image(systemName: "list.bullet").font(.system(size: 11.5))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(batchMode ? store.theme.accent.resolve(scheme) : .secondary)
+        .frame(width: 18, height: 18)
+        .contentShape(Rectangle())
+        .help("여러 줄 한 번에 넣기")
     }
 
     /// 오른쪽 아래를 끌어 팝오버 크기를 바꾼다. 놓으면 그 크기가 기억된다.

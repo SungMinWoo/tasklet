@@ -38,7 +38,7 @@ struct Snapshot: Decodable, Equatable {
     var theme: String = "mono"
     var mascot: String = "duck"
     var reasons: [String] = []
-    var changed: Int = 0
+    var changed: [Int] = []   // 방금 추가·수정된 id (한 번에 넣기는 여러 개)
 
     init() {}
 
@@ -51,7 +51,7 @@ struct Snapshot: Decodable, Equatable {
         theme = try c.decodeIfPresent(String.self, forKey: .theme) ?? "mono"
         mascot = try c.decodeIfPresent(String.self, forKey: .mascot) ?? "duck"
         reasons = try c.decodeIfPresent([String].self, forKey: .reasons) ?? []
-        changed = try c.decodeIfPresent(Int.self, forKey: .changed) ?? 0
+        changed = try c.decodeIfPresent([Int].self, forKey: .changed) ?? []
     }
 }
 
@@ -75,7 +75,7 @@ final class Store: ObservableObject {
     @Published var state = Snapshot()
     @Published var busy = false          // Haiku 대기 중 (3~12초)
     @Published var errorText = ""
-    @Published var pending: (id: Int, reasons: [String])? // 확인이 필요한 결과
+    @Published var pending: (ids: [Int], reasons: [String])? // 확인이 필요한 결과
 
     private let exe: String
     private var timer: Timer?
@@ -127,6 +127,11 @@ final class Store: ObservableObject {
         run(["add", sentence], slow: true)
     }
 
+    /// 여러 줄 한 번에 추가. 줄마다 동시에 파싱하므로 한 줄 추가와 비슷하게 걸린다.
+    func addBatch(_ text: String) {
+        run(["add", "--batch", text], slow: true)
+    }
+
     /// 고쳐 쓰기. 입력은 팝오버에서 이미 받았으므로 창을 띄우지 않는다.
     func edit(_ id: Int, sentence: String) {
         run(["edit", String(id), "--sentence", sentence], slow: true)
@@ -145,7 +150,9 @@ final class Store: ObservableObject {
                 case .success(let state):
                     self.errorText = ""
                     self.state = state
-                    if !state.reasons.isEmpty, state.changed != 0 {
+                    // 애매한 것이 있으면 확인 카드를 띄운다.
+                    // 여러 건을 한 번에 넣었을 때는 애매한 게 없어도 몇 건 들어갔는지 알려준다.
+                    if !state.changed.isEmpty, !state.reasons.isEmpty || state.changed.count > 1 {
                         self.pending = (state.changed, state.reasons)
                     }
                 }

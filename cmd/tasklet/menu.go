@@ -246,7 +246,7 @@ func cmdSetting(kind string, args []string) error {
 		if err != nil {
 			return err
 		}
-		return printState(f, nil, 0)
+		return printState(f, nil)
 	}
 	fmt.Printf("%s: %s\n", kind, name)
 	return nil

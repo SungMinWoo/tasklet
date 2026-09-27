@@ -16,6 +16,7 @@ import (
 
 const usage = `사용법:
   tasklet add "<자연어>"    할 일 추가 (Haiku 파싱, 3~12초)
+  tasklet add --batch [텍스트]  여러 줄을 한 번에 추가 (줄 = 1건, 인자 없으면 표준입력)
   tasklet list              남은 일 목록
   tasklet list --all        완료한 일까지
   tasklet done <id>         완료 처리
@@ -97,6 +98,9 @@ func takeJSONFlag(args []string) []string {
 }
 
 func cmdAdd(args []string) error {
+	if rest, batch := takeBatchFlag(args); batch {
+		return cmdAddBatch(rest)
+	}
 	sentence := strings.TrimSpace(strings.Join(args, " "))
 	if sentence == "" {
 		return fmt.Errorf(`추가할 문장이 없다. 예: tasklet add "화요일까지 회원가입 개발"`)
@@ -249,7 +253,7 @@ func cmdDelete(args []string) error {
 			return err
 		}
 		// 지운 id는 더 이상 없으므로 changed로 넘기지 않는다.
-		return printState(f, nil, 0)
+		return printState(f, nil)
 	}
 	fmt.Printf("%d번 삭제: %s\n", id, title)
 	return nil
