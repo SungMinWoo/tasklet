@@ -448,6 +448,7 @@ struct DoneRow: View {
                     .buttonStyle(.plain)
                     .font(.system(size: 11))
                     .foregroundStyle(store.theme.accent.resolve(scheme))
+                    .contentShape(Rectangle())
             }
         }
         .padding(.horizontal, 14)
@@ -518,15 +519,10 @@ struct TaskRow: View {
 
     var body: some View {
         HStack(spacing: 9) {
-            Button {
-                store.complete(task.id)
-            } label: {
-                Circle()
-                    .strokeBorder(store.theme.color(for: bucket).resolve(scheme), lineWidth: 2)
-                    .frame(width: 15, height: 15)
-            }
-            .buttonStyle(.plain)
-            .help("완료")
+            // 버킷 색 세로 띠. 표시만 한다 — 완료는 오른쪽 ✓ 버튼이 맡는다.
+            RoundedRectangle(cornerRadius: 1.5)
+                .fill(store.theme.color(for: bucket).resolve(scheme))
+                .frame(width: 3, height: 16)
 
             TruncatableText(text: task.title, font: .system(size: 13.5, weight: .medium))
             if !task.requester.isEmpty {
@@ -545,12 +541,14 @@ struct TaskRow: View {
                                      : Color.primary.opacity(0.7))
                     .opacity(showActions ? 0 : 1)
 
-                HStack(spacing: 10) {
+                HStack(spacing: 6) {
                     Button { picking = true } label: {
                         Image(systemName: "calendar").font(.system(size: 12))
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
                     .help("기한 바꾸기")
                     .popover(isPresented: $picking, arrowEdge: .bottom) {
                         DuePicker(task: task, store: store) { picking = false }
@@ -561,13 +559,26 @@ struct TaskRow: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
                     .help("고쳐 쓰기")
+
+                    Button { store.complete(task.id) } label: {
+                        Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+                    .help("완료")
 
                     Button { confirmingDelete = true } label: {
                         Image(systemName: "trash").font(.system(size: 12))
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
                     .help("삭제")
                     .popover(isPresented: $confirmingDelete, arrowEdge: .bottom) {
                         deleteConfirm
