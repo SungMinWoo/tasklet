@@ -57,13 +57,35 @@ cat > "$agent" <<PLIST
 </dict></plist>
 PLIST
 
+# bootout은 비동기다. 곧바로 bootstrap하면 아직 안 내려가서
+# "Bootstrap failed: 5: Input/output error"가 난다 (실측 2026-09-27, 재설치할 때마다).
+# 서비스가 사라지는 것을 확인한 뒤 등록하고, 그래도 실패하면 몇 번 더 해본다.
 launchctl bootout "gui/$UID/$label" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" "$agent"
+for _ in $(seq 25); do
+  launchctl print "gui/$UID/$label" >/dev/null 2>&1 || break
+  sleep 0.2
+done
+
+registered=no
+for attempt in 1 2 3; do
+  if launchctl bootstrap "gui/$UID" "$agent" 2>/dev/null; then
+    registered=yes
+    break
+  fi
+  [ "$attempt" = 3 ] || sleep 1
+done
 
 echo "4/4 실행"
 pkill -x Tasklet 2>/dev/null || true
 sleep 0.5
-launchctl kickstart -k "gui/$UID/$label"
+if [ "$registered" = yes ]; then
+  launchctl kickstart -k "gui/$UID/$label"
+else
+  # 등록이 안 돼도 앱은 띄운다 (자동 실행만 빠진 상태).
+  echo "자동 실행 등록 실패 — 이번에는 앱만 띄운다." >&2
+  echo "  다시 걸려면: launchctl bootout gui/$UID/$label; launchctl bootstrap gui/$UID $agent" >&2
+  open "$app"
+fi
 
 echo
 echo "끝. 메뉴바 오른쪽을 확인하세요."
