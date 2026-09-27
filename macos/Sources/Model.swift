@@ -176,12 +176,14 @@ final class Store: ObservableObject {
         let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
 
+        // 에러를 먼저 본다. Snapshot은 모든 필드가 옵션이라 {"error":...}도 디코드에
+        // 성공해 버리고, 그러면 "남은 일 0"인 빈 화면이 그려진다 (실측 2026-09-27).
+        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let message = obj["error"] as? String {
+            return .failure(message)
+        }
         if let state = try? JSONDecoder().decode(Snapshot.self, from: data) {
             return .success(state)
-        }
-        if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: String],
-           let message = obj["error"] {
-            return .failure(message)
         }
         let stderr = String(data: errData, encoding: .utf8) ?? ""
         return .failure(stderr.isEmpty ? "응답을 읽지 못했습니다" : stderr)

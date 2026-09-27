@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -66,7 +67,12 @@ func call(ctx context.Context, sentence string, today time.Time, tail string) (s
 	msg := fmt.Sprintf("오늘은 %s(%s)이다. 문장: %s",
 		today.Format(time.DateOnly), weekdayKoShort[today.Weekday()], sentence)
 
-	cmd := exec.CommandContext(ctx, "claude",
+	bin, err := claudeBin()
+	if err != nil {
+		return "", err
+	}
+
+	cmd := exec.CommandContext(ctx, bin,
 		"-p", "--model", "haiku", "--output-format", "json",
 		"--tools", "", "--strict-mcp-config", "--no-session-persistence", "--setting-sources", "",
 		"--settings", `{"alwaysThinkingEnabled":false}`,
@@ -169,8 +175,38 @@ func truncate(s string, n int) string {
 
 // LookupClaude는 claude CLI가 설치돼 있는지 본다.
 func LookupClaude() error {
-	if _, err := exec.LookPath("claude"); err != nil {
-		return fmt.Errorf("claude CLI를 찾을 수 없다 (PATH=%s)", os.Getenv("PATH"))
+	_, err := claudeBin()
+	return err
+}
+
+// claudeBin은 claude CLI 경로를 찾는다.
+// PATH만 봐서는 안 된다: 메뉴바 앱이 launchd로 뜨면 PATH가
+// /usr/bin:/bin:/usr/sbin:/sbin 뿐이라 ~/.local/bin/claude를 놓친다 (실측 2026-09-27).
+// 앱이 tasklet을 찾는 순서(macos/Sources/Model.swift)와 같은 방식이다.
+func claudeBin() (string, error) {
+	if p := os.Getenv("CLAUDE_BIN"); p != "" {
+		if isExecutable(p) {
+			return p, nil
+		}
+		return "", fmt.Errorf("CLAUDE_BIN이 실행 파일이 아니다: %s", p)
 	}
-	return nil
+	if p, err := exec.LookPath("claude"); err == nil {
+		return p, nil
+	}
+	candidates := []string{"/opt/homebrew/bin/claude", "/usr/local/bin/claude"}
+	if home, err := os.UserHomeDir(); err == nil {
+		candidates = append([]string{filepath.Join(home, ".local", "bin", "claude")}, candidates...)
+	}
+	for _, p := range candidates {
+		if isExecutable(p) {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("claude CLI를 찾을 수 없다 (PATH=%s, %s 에도 없음)",
+		os.Getenv("PATH"), strings.Join(candidates, " "))
+}
+
+func isExecutable(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0
 }
