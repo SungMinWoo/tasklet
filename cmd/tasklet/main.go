@@ -20,7 +20,7 @@ const usage = `사용법:
   tasklet list              남은 일 목록
   tasklet list --all        완료한 일까지
   tasklet done <id>         완료 처리
-  tasklet delete <id>       목록에서 지움 (되돌릴 수 없음)
+  tasklet delete <id>...    목록에서 지움 (여러 개 가능, 되돌릴 수 없음)
   tasklet menu              SwiftBar 메뉴 출력
   tasklet prompt            입력창을 띄워 추가
   tasklet edit <id>         원래 문장을 고쳐 다시 파싱
@@ -231,22 +231,52 @@ func cmdDone(args []string) error {
 }
 
 // cmdDelete는 할 일을 목록에서 지운다. 확인은 부르는 쪽(팝오버 🗑)에서 받는다.
+// id를 여러 개 받으면 한 번에 지운다 ('다시 쓰기'가 방금 넣은 것을 되돌릴 때).
+// 없는 id는 건너뛴다 — 되돌리려는 사이에 사용자가 그중 하나를 이미 완료·삭제했을 수 있고,
+// 그때 전부 취소하면 나머지가 중복으로 남는다. 하나도 못 찾았을 때만 실패한다.
 func cmdDelete(args []string) error {
-	id, err := idArg(args, "지울")
-	if err != nil {
-		return err
+	if len(args) < 1 {
+		return fmt.Errorf("지울 id가 없다")
 	}
-	var title string
-	if err := store.Update(func(f *store.File) error {
-		t := f.Find(id)
-		if t == nil {
-			return fmt.Errorf("%d번 할 일이 없다", id)
+	ids := make([]int, 0, len(args))
+	for _, a := range args {
+		id, err := strconv.Atoi(a)
+		if err != nil {
+			return fmt.Errorf("id는 숫자여야 한다: %q", a)
 		}
-		title = t.Title
-		return f.Delete(id)
+		ids = append(ids, id)
+	}
+
+	var deleted []int
+	var titles, missing []string
+	if err := store.Update(func(f *store.File) error {
+		deleted, titles, missing = nil, nil, nil
+		for _, id := range ids {
+			t := f.Find(id)
+			if t == nil {
+				missing = append(missing, strconv.Itoa(id))
+				continue
+			}
+			deleted = append(deleted, id)
+			titles = append(titles, t.Title)
+			if err := f.Delete(id); err != nil {
+				return err
+			}
+		}
+		if len(deleted) == 0 {
+			if len(ids) == 1 {
+				return fmt.Errorf("%d번 할 일이 없다", ids[0])
+			}
+			return fmt.Errorf("지울 할 일이 없다 (%s번 모두 없음)", strings.Join(missing, " "))
+		}
+		return nil
 	}); err != nil {
 		return err
 	}
+	if len(missing) > 0 {
+		fmt.Fprintf(os.Stderr, "%s번은 없어서 건너뛰었다\n", strings.Join(missing, " "))
+	}
+
 	if jsonMode {
 		f, err := store.Read()
 		if err != nil {
@@ -255,7 +285,14 @@ func cmdDelete(args []string) error {
 		// 지운 id는 더 이상 없으므로 changed로 넘기지 않는다.
 		return printState(f, nil)
 	}
-	fmt.Printf("%d번 삭제: %s\n", id, title)
+	if len(deleted) == 1 {
+		fmt.Printf("%d번 삭제: %s\n", deleted[0], titles[0])
+		return nil
+	}
+	fmt.Printf("%d건 삭제\n", len(deleted))
+	for i, id := range deleted {
+		fmt.Printf("  %3d  %s\n", id, titles[i])
+	}
 	return nil
 }
 

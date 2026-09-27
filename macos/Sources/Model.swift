@@ -74,6 +74,7 @@ enum Bucket: String, CaseIterable {
 final class Store: ObservableObject {
     @Published var state = Snapshot()
     @Published var busy = false          // Haiku 대기 중 (3~12초)
+    @Published var busyNote = ""         // 무엇을 기다리는 중인지 ("3줄 추가하는 중…")
     @Published var errorText = ""
     @Published var pending: (ids: [Int], reasons: [String])? // 확인이 필요한 결과
 
@@ -116,6 +117,12 @@ final class Store: ObservableObject {
     /// 삭제. 되돌릴 수 없으므로 확인은 행의 🗑 팝오버에서 받는다.
     func delete(_ id: Int) { run(["delete", String(id)]) }
 
+    /// 여러 건을 한 번에 삭제 ('다시 쓰기'가 방금 넣은 것을 되돌릴 때).
+    func delete(ids: [Int]) {
+        guard !ids.isEmpty else { return }
+        run(["delete"] + ids.map(String.init))
+    }
+
     func setDue(_ id: Int, _ spec: String) { run(["due", String(id), spec]) }
 
     func setTheme(_ key: String) { run(["theme", key]) }
@@ -124,26 +131,33 @@ final class Store: ObservableObject {
 
     /// 한 줄 추가. Haiku를 기다려야 해서 오래 걸린다.
     func add(_ sentence: String) {
-        run(["add", sentence], slow: true)
+        run(["add", sentence], slow: "추가하는 중…")
     }
 
     /// 여러 줄 한 번에 추가. 줄마다 동시에 파싱하므로 한 줄 추가와 비슷하게 걸린다.
-    func addBatch(_ text: String) {
-        run(["add", "--batch", text], slow: true)
+    func addBatch(_ text: String, lines: Int) {
+        run(["add", "--batch", text], slow: "\(lines)줄 추가하는 중…")
     }
 
     /// 고쳐 쓰기. 입력은 팝오버에서 이미 받았으므로 창을 띄우지 않는다.
     func edit(_ id: Int, sentence: String) {
-        run(["edit", String(id), "--sentence", sentence], slow: true)
+        run(["edit", String(id), "--sentence", sentence], slow: "\(id)번 고쳐 쓰는 중…")
     }
 
-    private func run(_ args: [String], slow: Bool = false) {
-        if slow { busy = true }
+    /// slow에 문구를 주면 기다리는 동안 목록 맨 위에 그 문구를 보여준다.
+    private func run(_ args: [String], slow: String? = nil) {
+        if let note = slow {
+            busy = true
+            busyNote = note
+        }
         let exe = self.exe
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Self.exec(exe, args + ["--json"])
             DispatchQueue.main.async {
-                if slow { self.busy = false }
+                if slow != nil {
+                    self.busy = false
+                    self.busyNote = ""
+                }
                 switch result {
                 case .failure(let message):
                     self.errorText = message

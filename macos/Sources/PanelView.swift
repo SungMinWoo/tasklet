@@ -9,6 +9,7 @@ struct PanelView: View {
     @State private var editDraft = ""
     @State private var batchMode = false   // 여러 줄 한 번에 넣기
     @State private var batchDraft = ""
+    @State private var lastBatch = ""      // 방금 넣은 붙여넣기 원문 ('다시 쓰기'용)
     @FocusState private var focused: Bool
 
     // 사용자가 오른쪽 아래를 끌어 조절한 크기. 기기별 취향이라 UserDefaults에 둔다.
@@ -95,6 +96,9 @@ struct PanelView: View {
     private var list: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                if store.busy {
+                    busyCard
+                }
                 if let pending = store.pending {
                     confirmCard(pending)
                 }
@@ -131,6 +135,24 @@ struct PanelView: View {
         .frame(height: listHeight)
     }
 
+    /// Haiku를 기다리는 동안 목록 맨 위에. 발치의 작은 표시는 눈에 안 띈다.
+    private var busyCard: some View {
+        HStack(spacing: 8) {
+            ProgressView().controlSize(.small).scaleEffect(0.7)
+            Text(store.busyNote.isEmpty ? "Claude가 읽는 중…" : store.busyNote)
+                .font(.system(size: 12, weight: .medium))
+            Text("3~12초")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(store.theme.accent.resolve(scheme).opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 12)
+        .padding(.top, 10)
+    }
+
     private func confirmCard(_ pending: (ids: [Int], reasons: [String])) -> some View {
         // 한 건이면 그 내용을, 여러 건이면 몇 건 들어갔는지 보여준다.
         let single = pending.ids.count == 1
@@ -139,10 +161,22 @@ struct PanelView: View {
         return VStack(alignment: .leading, spacing: 7) {
             Text(single.map(summaryText) ?? "\(pending.ids.count)건 추가했습니다")
                 .font(.system(size: 12.5, weight: .medium))
+            // 여러 건이면 무엇이 들어갔는지 줄줄이 보여준다 (한 건은 위에 이미 있다).
+            if single == nil {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(added(pending.ids)) { task in
+                        Text(summaryText(task))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
             ForEach(pending.reasons, id: \.self) { reason in
                 Text("· " + reason)
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 7) {
                 Button("맞아요") { store.pending = nil }
@@ -150,6 +184,17 @@ struct PanelView: View {
                 if let task = single {
                     Button("고쳐 쓰기") {
                         startEdit(task)
+                        store.pending = nil
+                    }
+                    .buttonStyle(.bordered).controlSize(.small)
+                } else if !lastBatch.isEmpty {
+                    // 여러 건은 하나씩 고치기보다 통째로 다시 쓰는 편이 빠르다.
+                    // 방금 넣은 것을 지우고 붙여넣었던 글을 입력창에 도로 채운다.
+                    Button("다시 쓰기") {
+                        store.delete(ids: pending.ids)
+                        batchDraft = lastBatch
+                        batchMode = true
+                        focused = true
                         store.pending = nil
                     }
                     .buttonStyle(.bordered).controlSize(.small)
@@ -161,6 +206,11 @@ struct PanelView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .padding(.horizontal, 12)
         .padding(.top, 10)
+    }
+
+    /// 방금 들어간 항목들. 지워졌거나 못 찾은 id는 건너뛴다.
+    private func added(_ ids: [Int]) -> [Item] {
+        ids.compactMap { id in store.state.tasks.first { $0.id == id } }
     }
 
     private func summaryText(_ task: Item) -> String {
@@ -191,11 +241,7 @@ struct PanelView: View {
                 }
             }
             HStack(spacing: 6) {
-                if store.busy {
-                    ProgressView().controlSize(.small).scaleEffect(0.7)
-                    Text("Claude가 읽는 중… 3~12초")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
-                }
+                // 기다리는 표시는 목록 맨 위 busyCard가 맡는다.
                 Spacer()
                 if editing == nil { batchToggle }
                 settingsMenu
@@ -234,9 +280,11 @@ struct PanelView: View {
 
                 Button(batchLines.isEmpty ? "추가" : "\(batchLines.count)줄 추가") {
                     let text = batchDraft
+                    let lines = batchLines.count
                     batchDraft = ""
                     batchMode = false
-                    store.addBatch(text)
+                    lastBatch = text
+                    store.addBatch(text, lines: lines)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
@@ -348,6 +396,50 @@ struct PanelView: View {
     }
 }
 
+/// 한 줄로 줄이되, **실제로 잘린 것만** 마우스를 올리면 말풍선으로 전체를 보여주고
+/// 누르면 여러 줄로 펼친다. 잘리지 않은 줄은 아무 반응이 없다.
+struct TruncatableText: View {
+    let text: String
+    let font: Font
+
+    @State private var truncated = false
+    @State private var expanded = false
+
+    var body: some View {
+        Text(text)
+            .font(font)
+            .lineLimit(expanded ? nil : 1)
+            .fixedSize(horizontal: false, vertical: expanded)
+            .background(widthProbe)
+            .help(truncated ? text : "")
+            .onTapGesture {
+                guard truncated else { return } // 안 잘린 줄은 눌러도 변화 없음
+                expanded.toggle()
+            }
+    }
+
+    /// 줄이지 않았을 때의 너비와 실제로 주어진 너비를 견줘 잘렸는지 본다.
+    /// 재는 쪽은 hidden이라 화면에는 보이지 않는다.
+    private var widthProbe: some View {
+        GeometryReader { shown in
+            Text(text)
+                .font(font)
+                .fixedSize(horizontal: true, vertical: false)
+                .background(GeometryReader { ideal in
+                    Color.clear.preference(key: TruncatedKey.self,
+                                           value: ideal.size.width > shown.size.width + 0.5)
+                })
+                .hidden()
+        }
+        .onPreferenceChange(TruncatedKey.self) { truncated = $0 }
+    }
+}
+
+private struct TruncatedKey: PreferenceKey {
+    static var defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+
 /// 할 일 한 줄. 마우스를 올리면 기한·수정 버튼이 나온다.
 struct TaskRow: View {
     let task: Item
@@ -375,14 +467,10 @@ struct TaskRow: View {
             .buttonStyle(.plain)
             .help("완료")
 
-            Text(task.title)
-                .font(.system(size: 13.5, weight: .medium))
-                .lineLimit(1)
+            TruncatableText(text: task.title, font: .system(size: 13.5, weight: .medium))
             if !task.requester.isEmpty {
-                Text("· " + task.requester)
-                    .font(.system(size: 12))
+                TruncatableText(text: "· " + task.requester, font: .system(size: 12))
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
             }
             Spacer(minLength: 4)
 
