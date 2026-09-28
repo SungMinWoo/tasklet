@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// Go CLI(tasklet)가 내려주는 상태. 날짜·버킷 계산은 Go가 한다 (DESIGN.md 1장).
+// Go CLI(tasklet)가 내려주는 상태. 날짜·버킷 계산은 Go가 한다.
 struct Item: Identifiable, Decodable, Equatable {
     let id: Int
     let title: String

@@ -10,7 +10,7 @@ struct TaskletApp: App {
                 .onAppear { store.reload() }
         } label: {
             // 메뉴바: 캐릭터 + 숫자. 지난 일이 있으면 숫자를 강조색으로
-            // (캐릭터에 고유 색이 있어 캐릭터 색으로는 알릴 수 없다 — DESIGN.md 7장).
+            // (캐릭터에 고유 색이 있어 캐릭터 색으로는 알릴 수 없다).
             MenuBarLabel(store: store)
         }
         .menuBarExtraStyle(.window)

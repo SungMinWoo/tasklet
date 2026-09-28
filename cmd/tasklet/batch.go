@@ -13,7 +13,7 @@ import (
 	"github.com/SungMinWoo/tasklet/internal/store"
 )
 
-// 한 번에 넣기 (DESIGN.md 4장·6장).
+// 한 번에 넣기.
 // 줄바꿈으로 나눠 줄마다 Haiku를 동시에 부른다 — 전체 소요는 가장 느린 한 줄과 같다.
 // 한 줄에 서로 다른 업무가 섞여 있으면 그 줄에서 여러 건이 나온다.
 const (
@@ -56,7 +56,7 @@ func cmdAddBatch(args []string) error {
 				resolved, rerr := parse.ResolveDue(res.Due, time.Now())
 				if rerr != nil {
 					// 스키마에 없는 kind가 오면 기한 없음으로 낮추고 애매한 것으로 표시한다
-					// (add 한 건과 같은 처리, DESIGN.md 6장 방어 코드).
+					// (add 한 건과 같은 처리).
 					fmt.Fprintf(os.Stderr, "%q 기한을 해석하지 못했다: %v\n", p.line, rerr)
 					resolved = parse.Resolved{}
 					res.Due = parse.Due{Kind: "none"}
@@ -93,7 +93,7 @@ func cmdAddBatch(args []string) error {
 			fmt.Printf("  %3d  %s\n", id, describe(*t, now))
 		}
 	}
-	// 확인창은 팝오버가 띄운다. 터미널에서는 이유만 알린다 (DESIGN.md 8장).
+	// 확인창은 팝오버가 띄운다. 터미널에서는 이유만 알린다.
 	for _, r := range reasons {
 		fmt.Printf("  · %s\n", r)
 	}
@@ -123,7 +123,7 @@ func interpretLines(lines []string) []lineResults {
 
 			results, err := parse.ExtractMany(context.Background(), line, today)
 			if err != nil {
-				// 조용히 실패하지 않는다: 기한 없이 저장하고 알린다 (DESIGN.md 6장 방어 코드 3번).
+				// 조용히 실패하지 않는다: 기한 없이 저장하고 알린다.
 				fmt.Fprintf(os.Stderr, "%q 파싱 실패 — 기한 없이 저장한다: %v\n", line, err)
 				results = []parse.Result{parse.Fallback(line)}
 			}

@@ -2,7 +2,7 @@
 
 A personal task memo that lives in the macOS menu bar. Write one line and Claude Haiku pulls out the task, who asked for it, and when it is due.
 
-[한국어](README.md) · [Design notes](DESIGN.md) (Korean)
+[한국어](README.md)
 
 ![tasklet popover](docs/popover.png)
 
@@ -89,8 +89,6 @@ go test ./...                 # 113 cases (date math, storage, concurrency, resp
 go build -o bin/tasklet ./cmd/tasklet
 ./macos/build.sh --run        # build the SwiftUI app and run it
 ```
-
-Design decisions and measurements are in [DESIGN.md](DESIGN.md), written in Korean: why JSON instead of SQLite, why Go does the date math, and how the `claude -p` options were chosen.
 
 ## License
 

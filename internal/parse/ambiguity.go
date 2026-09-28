@@ -2,7 +2,7 @@ package parse
 
 import "regexp"
 
-// dateLike: 기한처럼 보이는 표현. A1 판정용 (DESIGN.md 8장).
+// dateLike: 기한처럼 보이는 표현. A1 판정용.
 // 넓게 잡는다 — 틀려도 확인창이 한 번 더 뜰 뿐이다.
 var dateLike = regexp.MustCompile(
 	`[월화수목금토일]요일|` + // 화요일

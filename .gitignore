@@ -1,1 +1,7 @@
 bin/
+
+# 개인 설계 노트·평가 자료 (공개 저장소에는 올리지 않는다)
+DESIGN.md
+scripts/
+testdata/
+docs/popover.svg

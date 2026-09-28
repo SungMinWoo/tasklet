@@ -1,4 +1,4 @@
-// Package store는 ~/.tasklet/tasks.json을 읽고 쓴다 (DESIGN.md 5장).
+// Package store는 ~/.tasklet/tasks.json을 읽고 쓴다.
 // 쓰기는 flock으로 잠그고, 임시파일 → rename으로 교체한다.
 package store
 

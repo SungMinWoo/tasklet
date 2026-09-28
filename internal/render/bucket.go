@@ -1,4 +1,4 @@
-// Package render는 할 일을 버킷으로 나누고 SwiftBar 메뉴 텍스트를 만든다 (DESIGN.md 7장).
+// Package render는 할 일을 버킷으로 나누고 SwiftBar 메뉴 텍스트를 만든다.
 package render
 
 import (
@@ -62,7 +62,7 @@ func dueOf(t store.Task) string {
 	return *t.DueAt
 }
 
-// BucketOf는 할 일 하나가 어느 버킷인지 정한다 (DESIGN.md 7장).
+// BucketOf는 할 일 하나가 어느 버킷인지 정한다.
 //
 //	지남   기한 < 오늘
 //	오늘   기한 = 오늘

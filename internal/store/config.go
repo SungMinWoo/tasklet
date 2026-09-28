@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// Config는 ~/.tasklet/config.json (DESIGN.md 5장).
+// Config는 ~/.tasklet/config.json.
 type Config struct {
 	Theme            string `json:"theme"`
 	Mascot           string `json:"mascot"`

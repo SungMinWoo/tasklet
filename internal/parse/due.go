@@ -1,5 +1,5 @@
 // Package parse는 Haiku가 뽑은 기한 표현을 실제 날짜로 바꾼다.
-// 날짜 계산은 LLM에 맡기지 않는다 (DESIGN.md 6장).
+// 날짜 계산은 LLM에 맡기지 않는다.
 package parse
 
 import (
@@ -19,7 +19,7 @@ type Due struct {
 // Resolved는 계산된 기한.
 type Resolved struct {
 	Date   time.Time // IsZero()면 기한 없음
-	Reason string    // 비어 있지 않으면 확인창에 보여줄 애매함 사유 (DESIGN.md 8장 A2·A3·A5)
+	Reason string    // 비어 있지 않으면 확인창에 보여줄 애매함 사유
 }
 
 var weekdays = map[string]time.Weekday{
@@ -71,7 +71,7 @@ func ResolveDue(d Due, today time.Time) (Resolved, error) {
 		return Resolved{Date: nextMonday(today).AddDate(0, 0, mondayIndex(wd))}, nil
 
 	case "eow":
-		// 평일: 이번 주 금요일. 주말: 다음 주 금요일 (DESIGN.md 7장 주말 규칙).
+		// 평일: 이번 주 금요일. 주말: 다음 주 금요일.
 		if idx := mondayIndex(today.Weekday()); idx <= 4 {
 			return Resolved{Date: today.AddDate(0, 0, 4-idx)}, nil
 		}

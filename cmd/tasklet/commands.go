@@ -81,7 +81,7 @@ func flagValue(args []string, name string) (string, bool) {
 
 // addInteractive는 입력 문장을 해석해 저장한다.
 // 애매하면 확인창을 띄우고, '아니오'면 한 번 더 고쳐 쓰게 한 뒤 그때는 묻지 않는다
-// (무한 반복 방지, DESIGN.md 8장).
+// (무한 반복 방지).
 // id가 0이면 새로 추가, 아니면 그 할 일을 덮어쓴다.
 func addInteractive(sentence string, id int) error {
 	for attempt := 0; ; attempt++ {
@@ -123,7 +123,7 @@ func save(sentence string, res parse.Result, resolved parse.Resolved, id int) er
 		}
 		return nil
 	}
-	// 수정: id·상태·만든 시각은 유지하고 내용만 갈아끼운다 (DESIGN.md 8장).
+	// 수정: id·상태·만든 시각은 유지하고 내용만 갈아끼운다.
 	err := store.Update(func(f *store.File) error {
 		t := f.Find(id)
 		if t == nil {

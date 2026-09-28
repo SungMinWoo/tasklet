@@ -1,4 +1,4 @@
-// tasklet — 메뉴바 업무 메모 (DESIGN.md 4장)
+// tasklet — 메뉴바 업무 메모
 package main
 
 import (
@@ -122,7 +122,7 @@ func cmdAdd(args []string) error {
 		return printState(f, reasons, id)
 	}
 	fmt.Printf("%d번 추가: %s\n", id, describe(taskOf(sentence, res, resolved), time.Now()))
-	// 확인창은 prompt·edit에서 띄운다. 터미널에서는 이유만 알린다 (DESIGN.md 8장).
+	// 확인창은 prompt·edit에서 띄운다. 터미널에서는 이유만 알린다.
 	for _, r := range reasons {
 		fmt.Printf("  · %s\n", r)
 	}
@@ -130,7 +130,7 @@ func cmdAdd(args []string) error {
 }
 
 // interpret은 문장 하나를 Haiku로 보내 기한까지 계산한다.
-// 실패해도 크래시 없이 기본값으로 내려간다 (DESIGN.md 6장 방어 코드).
+// 실패해도 크래시 없이 기본값으로 내려간다.
 func interpret(sentence string) (parse.Result, parse.Resolved, error) {
 	if err := parse.LookupClaude(); err != nil {
 		return parse.Result{}, parse.Resolved{}, err
@@ -138,7 +138,7 @@ func interpret(sentence string) (parse.Result, parse.Resolved, error) {
 	today := time.Now()
 	res, err := parse.Extract(context.Background(), sentence, today)
 	if err != nil {
-		// 조용히 실패하지 않는다: 기본값으로 저장하고 알린다 (DESIGN.md 6장 방어 코드 3번).
+		// 조용히 실패하지 않는다: 기본값으로 저장하고 알린다.
 		fmt.Fprintf(os.Stderr, "파싱 실패 — 기한 없이 저장한다: %v\n", err)
 		res = parse.Fallback(sentence)
 	}

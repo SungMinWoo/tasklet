@@ -15,7 +15,7 @@ import (
 //go:embed prompt.txt
 var systemPrompt string
 
-// Result는 Haiku가 문장에서 뽑아낸 것 (DESIGN.md 6장).
+// Result는 Haiku가 문장에서 뽑아낸 것.
 type Result struct {
 	Title    string `json:"title"`
 	From     string `json:"from"`
@@ -31,7 +31,7 @@ type meta struct {
 	Subtype string `json:"subtype"`
 }
 
-// Timeout은 claude 호출 상한. 실측 보통 3~4초, 느릴 때 12초 (DESIGN.md 6장).
+// Timeout은 claude 호출 상한. 실측 보통 3~4초, 느릴 때 12초.
 const Timeout = 40 * time.Second
 
 var weekdayKoShort = [...]string{"일", "월", "화", "수", "목", "금", "토"}
@@ -45,7 +45,7 @@ func Extract(ctx context.Context, sentence string, today time.Time) (Result, err
 	return parseResult(out)
 }
 
-// ExtractMany는 줄 하나에서 업무를 여러 개까지 뽑는다 ('한 번에 넣기', DESIGN.md 6장).
+// ExtractMany는 줄 하나에서 업무를 여러 개까지 뽑는다 ('한 번에 넣기').
 // 필드 규칙은 Extract와 같은 prompt.txt를 쓰고, 출력 형태만 배열로 바꾼다.
 func ExtractMany(ctx context.Context, sentence string, today time.Time) ([]Result, error) {
 	out, err := call(ctx, sentence, today,
@@ -57,7 +57,6 @@ func ExtractMany(ctx context.Context, sentence string, today time.Time) ([]Resul
 }
 
 // call은 claude CLI를 부르고 모델 답변 문자열을 돌려준다.
-// 호출 방식은 DESIGN.md 6장 '호출 방식'과 같아야 한다.
 // tail은 출력 형태 지시 — 필드 규칙(prompt.txt)은 건드리지 않는다.
 func call(ctx context.Context, sentence string, today time.Time, tail string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, Timeout)
@@ -153,7 +152,7 @@ func parseResults(s string) ([]Result, error) {
 	return out, nil
 }
 
-// Fallback은 파싱이 실패했을 때 쓸 기본값 (DESIGN.md 6장 방어 코드 3번).
+// Fallback은 파싱이 실패했을 때 쓸 기본값.
 // 조용히 넘어가지 않고 호출한 쪽이 사용자에게 알린다.
 func Fallback(sentence string) Result {
 	return Result{

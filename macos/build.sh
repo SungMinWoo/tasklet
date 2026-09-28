@@ -1,5 +1,5 @@
 #!/bin/bash
-# SwiftUI 메뉴바 앱 빌드 — Xcode 없이 명령줄 도구만 쓴다 (DESIGN.md 1장).
+# SwiftUI 메뉴바 앱 빌드 — Xcode 없이 명령줄 도구만 쓴다.
 # 사용법: macos/build.sh [--run]
 set -euo pipefail
 cd "$(dirname "$0")"

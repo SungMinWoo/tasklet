@@ -2,7 +2,7 @@
 
 macOS 메뉴바에서 쓰는 개인 업무 메모입니다. 한 줄로 적으면 Claude Haiku가 업무·요청자·기한을 뽑아 정리합니다.
 
-[English](README.en.md) · [설계 문서](DESIGN.md)
+[English](README.en.md)
 
 ![tasklet 팝오버](docs/popover.png)
 
@@ -87,8 +87,6 @@ go test ./...                 # 113개 케이스 (날짜 계산 · 저장 · 동
 go build -o bin/tasklet ./cmd/tasklet
 ./macos/build.sh --run        # SwiftUI 앱 빌드 후 실행
 ```
-
-설계 결정과 실측 기록은 [DESIGN.md](DESIGN.md)에 있습니다. JSON을 쓴 이유, 날짜 계산을 Go가 맡는 이유, `claude -p` 호출 옵션을 고른 과정이 적혀 있습니다.
 
 ## 라이선스
 
