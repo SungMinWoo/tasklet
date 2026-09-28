@@ -13,6 +13,10 @@ if [ ! -x "$root/bin/tasklet" ]; then
   exit 1
 fi
 
+# 앱 버전은 가장 가까운 git 태그 (v0.1.0 → 0.1.0). 태그가 없으면 0.0.0.
+version=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+version=${version#v}
+
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS"
 
@@ -26,7 +30,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>Tasklet</string>
   <key>CFBundleIdentifier</key><string>local.tasklet.menubar</string>
   <key>CFBundleName</key><string>tasklet</string>
-  <key>CFBundleShortVersionString</key><string>0.1</string>
+  <key>CFBundleShortVersionString</key><string>$version</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSUIElement</key><true/>
   <key>LSMinimumSystemVersion</key><string>13.0</string>

@@ -28,8 +28,12 @@ const usage = `사용법:
   tasklet theme <name>      테마 변경
   tasklet mascot <name>     캐릭터 변경
   tasklet state --json      화면(SwiftUI)이 읽는 상태 JSON
+  tasklet version           버전
   --json                    add·done·undone·delete·due·edit·theme·mascot에 붙이면 결과를 상태 JSON으로 낸다
 `
+
+// version은 install.sh가 빌드할 때 git 태그로 넣는다. 그냥 go build하면 dev.
+var version = "dev"
 
 // jsonMode면 결과를 사람이 읽는 줄 대신 화면(SwiftUI)이 읽는 JSON으로 낸다.
 var jsonMode bool
@@ -64,6 +68,9 @@ func main() {
 		err = cmdSetting("theme", os.Args[2:])
 	case "mascot":
 		err = cmdSetting("mascot", os.Args[2:])
+	case "version", "--version":
+		fmt.Println(version)
+		return
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 		return

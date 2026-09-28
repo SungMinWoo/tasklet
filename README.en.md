@@ -70,6 +70,7 @@ The same things work from the terminal.
 | `tasklet edit <id>` | Rewrite the original sentence and parse it again |
 | `tasklet due <id> <spec>` | Change only the due date (`+1d`, `eow`, `next_eow`, `none`, …) |
 | `tasklet theme <name>` · `tasklet mascot <name>` | 5 themes · 7 characters |
+| `tasklet version` | Show the version |
 
 Note that the extraction prompt is written and tested in Korean. English input is not verified yet.
 

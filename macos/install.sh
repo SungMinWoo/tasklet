@@ -30,7 +30,8 @@ fi
 mkdir -p "$bin_dir" "$app_dir"
 
 echo "1/4 Go CLI 빌드 → $bin_dir/tasklet"
-go build -o "$bin_dir/tasklet" ./cmd/tasklet
+version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
+go build -ldflags "-X main.version=$version" -o "$bin_dir/tasklet" ./cmd/tasklet
 
 echo "2/4 메뉴바 앱 빌드 → $app"
 ./macos/build.sh >/dev/null

@@ -70,6 +70,7 @@ CLI는 `~/.local/bin/tasklet`, 앱은 `~/Applications/Tasklet.app`에 설치되�
 | `tasklet edit <id>` | 원래 문장을 고쳐 다시 파싱 |
 | `tasklet due <id> <spec>` | 기한만 변경 (`+1d` `eow` `next_eow` `none` 등) |
 | `tasklet theme <name>` · `tasklet mascot <name>` | 테마 5종 · 캐릭터 7종 |
+| `tasklet version` | 버전 |
 
 ## 데이터
 
