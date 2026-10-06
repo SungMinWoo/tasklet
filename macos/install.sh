@@ -31,7 +31,10 @@ mkdir -p "$bin_dir" "$app_dir"
 
 echo "1/4 Go CLI 빌드 → $bin_dir/tasklet"
 version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
-go build -ldflags "-X main.version=$version" -o "$bin_dir/tasklet" ./cmd/tasklet
+# build.sh가 repo/bin/tasklet을 요구하므로 먼저 거기에 빌드하고 설치 경로로 복사한다.
+# (새로 clone하면 bin/이 없어서 2단계에서 멈췄다)
+go build -ldflags "-X main.version=$version" -o "$repo/bin/tasklet" ./cmd/tasklet
+cp "$repo/bin/tasklet" "$bin_dir/tasklet"
 
 echo "2/4 메뉴바 앱 빌드 → $app"
 ./macos/build.sh >/dev/null
