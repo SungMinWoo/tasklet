@@ -55,7 +55,7 @@ CLI는 `~/.local/bin/tasklet`, 앱은 `~/Applications/Tasklet.app`에 설치되�
 
 - 아래 입력창에 한 줄 적고 `⏎`
 - 여러 줄을 한 번에 넣으려면 **☰** 를 누르고 붙여넣은 뒤 `⌘⏎`. 줄마다 한 건으로 들어갑니다. 줄마다 동시에 파싱해서 세 줄이든 한 줄이든 걸리는 시간은 비슷합니다
-- 행에 마우스를 올리면 **기한 · 고쳐 쓰기 · 삭제** 버튼이 나옵니다. 왼쪽 **○** 을 누르면 완료됩니다
+- 행에 마우스를 올리면 **기한 · 고쳐 쓰기 · 완료(✓) · 삭제** 버튼이 나옵니다. 잘못 완료한 것은 목록 아래 **오늘 완료** 를 펴서 되돌립니다
 - 왼쪽 아래 **할 일 | 기록** 으로 탭을 바꿉니다. 기록 탭은 일을 날짜별로 모아 보여주고, 위쪽에서 **등록한 날 / 완료한 날** 기준과 기간(기본 최근 1개월, 📅을 눌러 달력에서 시작일·끝날 선택)을 고릅니다
 - 기한이 애매하면(예: "화요일"이 오늘인 경우) 확인 카드로 알려줍니다
 
@@ -67,7 +67,8 @@ CLI는 `~/.local/bin/tasklet`, 앱은 `~/Applications/Tasklet.app`에 설치되�
 | `tasklet add --batch [텍스트]` | 여러 줄 한 번에 추가. 텍스트가 없으면 표준입력에서 읽습니다 |
 | `tasklet list [--all]` | 목록. `--all` 은 완료한 것까지 |
 | `tasklet history [--created] [--from 날짜] [--to 날짜]` | 완료한 일을 완료한 날짜별로. `--created` 는 모든 일을 등록한 날짜별로. 기간 기본은 최근 1개월 |
-| `tasklet done <id>` | 완료 |
+| `tasklet prompt` | 입력창을 띄워 추가 |
+| `tasklet done <id>` · `tasklet undone <id>` | 완료 · 완료 취소 |
 | `tasklet delete <id>...` | 삭제. id를 여러 개 줄 수 있습니다 |
 | `tasklet edit <id>` | 원래 문장을 고쳐 다시 파싱 |
 | `tasklet due <id> <spec>` | 기한만 변경 (`+1d` `eow` `next_eow` `none` 등) |
@@ -86,7 +87,7 @@ CLI는 `~/.local/bin/tasklet`, 앱은 `~/Applications/Tasklet.app`에 설치되�
 ## 개발
 
 ```bash
-go test ./...                 # 113개 케이스 (날짜 계산 · 저장 · 동시성 · 응답 파싱)
+go test ./...                 # 121개 케이스 (날짜 계산 · 저장 · 동시성 · 응답 파싱)
 go build -o bin/tasklet ./cmd/tasklet
 ./macos/build.sh --run        # SwiftUI 앱 빌드 후 실행
 ```
