@@ -21,6 +21,9 @@ const usage = `사용법:
   tasklet list --all        완료한 일까지
   tasklet done <id>         완료 처리
   tasklet undone <id>       완료 취소
+  tasklet history           완료한 일을 완료한 날짜별로 (기본 최근 1개월)
+  tasklet history --created 모든 일을 등록한 날짜별로
+  tasklet history --from 2026-09-01 --to 2026-09-30   기간 지정
   tasklet delete <id>...    목록에서 지움 (여러 개 가능, 되돌릴 수 없음)
   tasklet prompt            입력창을 띄워 추가 (터미널용)
   tasklet edit <id>         원래 문장을 고쳐 다시 파싱
@@ -58,6 +61,8 @@ func main() {
 		err = cmdDelete(os.Args[2:])
 	case "state":
 		err = cmdState()
+	case "history":
+		err = cmdHistory(os.Args[2:])
 	case "prompt":
 		err = cmdPrompt()
 	case "edit":

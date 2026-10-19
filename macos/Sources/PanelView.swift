@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum PanelTab: String {
+    case tasks, history
+}
+
 // 팝오버 A안: 맨 위 스택 바 + 급한 것부터 누르는 목록 (시안 2026-09-23).
 struct PanelView: View {
     @ObservedObject var store: Store
@@ -11,24 +15,42 @@ struct PanelView: View {
     @State private var batchDraft = ""
     @State private var lastBatch = ""      // 방금 넣은 붙여넣기 원문 ('다시 쓰기'용)
     @AppStorage("doneSectionOpen") private var doneOpen = false
+    @AppStorage("panelTab") private var tab: PanelTab = .tasks
     @FocusState private var focused: Bool
 
     // 사용자가 오른쪽 아래를 끌어 조절한 크기. 기기별 취향이라 UserDefaults에 둔다.
     @AppStorage("panelWidth") private var width: Double = 348
     @AppStorage("panelListHeight") private var listHeight: Double = 360
+    // '할 일' 탭에서 목록을 뺀 나머지(머리·입력줄) 높이. 탭을 바꿔도 팝오버 크기가 그대로이게
+    // '기록' 탭을 이 높이 + 목록 높이로 맞춘다. 0이면 아직 못 잰 것.
+    @AppStorage("panelChromeHeight") private var chromeHeight: Double = 0
 
     private static let widthRange: ClosedRange<Double> = 280...560
     private static let heightRange: ClosedRange<Double> = 160...620
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Divider().opacity(0.6)
-            list
+            if tab == .tasks {
+                header
+                Divider().opacity(0.6)
+                list
+            } else {
+                HistoryHeader(store: store)
+                Divider().opacity(0.6)
+                HistoryList(store: store)
+                    .frame(height: chromeHeight > 0 ? nil : listHeight)
+                    .frame(maxHeight: .infinity)
+            }
             Divider().opacity(0.6)
             footer
         }
         .frame(width: width)
+        .frame(height: tab == .history && chromeHeight > 0 ? chromeHeight + listHeight : nil)
+        .background(GeometryReader { geo in
+            Color.clear
+                .onAppear { measure(geo.size.height) }
+                .onChange(of: geo.size.height) { measure($0) }
+        })
         .background(.regularMaterial)
         .background(store.theme.accent.resolve(scheme).opacity(0.05))
     }
@@ -255,33 +277,53 @@ struct PanelView: View {
 
     private var footer: some View {
         VStack(spacing: 8) {
-            if let task = editing {
-                inputRow(placeholder: "고쳐 쓰기", text: $editDraft, hint: "\(task.id)번 수정") {
-                    let sentence = editDraft.trimmingCharacters(in: .whitespaces)
-                    editing = nil
-                    if !sentence.isEmpty, sentence != task.raw {
-                        store.edit(task.id, sentence: sentence)
-                    }
-                }
-            } else if batchMode {
-                batchRow
-            } else {
-                inputRow(placeholder: "할 일을 한 줄로", text: $draft, hint: nil) {
-                    let sentence = draft.trimmingCharacters(in: .whitespaces)
-                    draft = ""
-                    if !sentence.isEmpty { store.add(sentence) }
-                }
+            // 입력줄은 '할 일' 탭에만. 탭 전환은 아래 줄 왼쪽에 고정해 둔다.
+            if tab == .tasks {
+                inputArea
             }
             HStack(spacing: 6) {
+                tabPicker
                 // 기다리는 표시는 목록 맨 위 busyCard가 맡는다.
                 Spacer()
-                if editing == nil { batchToggle }
+                if editing == nil && tab == .tasks { batchToggle }
                 settingsMenu
                 resizeGrip
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    @ViewBuilder private var inputArea: some View {
+        if let task = editing {
+            inputRow(placeholder: "고쳐 쓰기", text: $editDraft, hint: "\(task.id)번 수정") {
+                let sentence = editDraft.trimmingCharacters(in: .whitespaces)
+                editing = nil
+                if !sentence.isEmpty, sentence != task.raw {
+                    store.edit(task.id, sentence: sentence)
+                }
+            }
+        } else if batchMode {
+            batchRow
+        } else {
+            inputRow(placeholder: "할 일을 한 줄로", text: $draft, hint: nil) {
+                let sentence = draft.trimmingCharacters(in: .whitespaces)
+                draft = ""
+                if !sentence.isEmpty { store.add(sentence) }
+            }
+        }
+    }
+
+    /// 할 일 / 기록 전환. 아래 줄 왼쪽 빈 곳에 둬서 팝오버 높이를 늘리지 않는다.
+    private var tabPicker: some View {
+        Picker("", selection: $tab) {
+            Text("할 일").tag(PanelTab.tasks)
+            Text("기록").tag(PanelTab.history)
+        }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .controlSize(.small)
+        .fixedSize()
     }
 
     /// 여러 줄 한 번에 넣기. 붙여넣은 글을 줄마다 한 건으로 만든다
@@ -418,6 +460,11 @@ struct PanelView: View {
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .frame(width: 22)
+    }
+
+    private func measure(_ height: CGFloat) {
+        guard tab == .tasks else { return }
+        chromeHeight = height - listHeight
     }
 
     private func startEdit(_ task: Item) {

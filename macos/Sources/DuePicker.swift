@@ -11,13 +11,7 @@ struct DuePicker: View {
     @State private var month: Date = Date()
 
     private let cell: CGFloat = 32
-    private let weekdays = ["월", "화", "수", "목", "금", "토", "일"]
-
-    private var cal: Calendar {
-        var c = Calendar(identifier: .gregorian)
-        c.firstWeekday = 2 // 월요일
-        return c
-    }
+    private var cal: Calendar { MonthCalendar<EmptyView>.cal }
 
     private var accent: Color { store.theme.accent.resolve(scheme) }
 
@@ -25,9 +19,7 @@ struct DuePicker: View {
         VStack(alignment: .leading, spacing: 10) {
             quickRow
             Divider().opacity(0.5)
-            monthHeader
-            weekdayRow
-            grid
+            MonthCalendar(month: $month, cell: cell) { day in dayCell(day) }
             footer
         }
         .padding(12)
@@ -60,6 +52,104 @@ struct DuePicker: View {
         .background(accent.opacity(0.14))
         .foregroundStyle(accent)
         .clipShape(RoundedRectangle(cornerRadius: 7))
+    }
+
+    @ViewBuilder private func dayCell(_ day: Date) -> some View {
+        let isToday = cal.isDateInToday(day)
+        let isSelected = task.dueAt == string(from: day)
+        let inMonth = cal.isDate(day, equalTo: month, toGranularity: .month)
+        let count = store.state.tasks.filter { $0.dueAt == string(from: day) }.count
+
+        Button {
+            store.setDue(task.id, string(from: day))
+            done()
+        } label: {
+            VStack(spacing: 1) {
+                Text("\(cal.component(.day, from: day))")
+                    .font(.system(size: 12.5, weight: isToday ? .bold : .regular))
+                Circle()
+                    .fill(count > 0 ? accent : .clear)
+                    .frame(width: 3.5, height: 3.5)
+            }
+            .frame(width: cell, height: cell - 4)
+            .background(isSelected ? accent : .clear)
+            .foregroundStyle(cellForeground(selected: isSelected, today: isToday, inMonth: inMonth))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay {
+                if isToday && !isSelected {
+                    RoundedRectangle(cornerRadius: 8).strokeBorder(accent, lineWidth: 1.4)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func cellForeground(selected: Bool, today: Bool, inMonth: Bool) -> Color {
+        if selected { return .white }
+        if !inMonth { return .primary.opacity(0.25) }
+        if today { return accent }
+        return .primary.opacity(0.85)
+    }
+
+    // MARK: 발
+
+    private var footer: some View {
+        HStack {
+            Button("기한 없음") {
+                store.setDue(task.id, "none")
+                done()
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 11.5))
+            .foregroundStyle(.secondary)
+
+            Spacer()
+
+            if !task.dueAt.isEmpty {
+                Text("지금 " + task.dueLabel)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: 날짜 문자열 (Go와 주고받는 형식)
+
+    private func string(from date: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+
+    private func date(from string: String) -> Date? {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.date(from: string)
+    }
+}
+
+/// 월요일 시작 월 달력: 월 이동 + 요일 줄 + 날짜 격자.
+/// 칸 하나를 어떻게 그릴지(누르면 무엇을 할지)는 쓰는 쪽이 정한다 (기한 고르기, 기록 기간 고르기).
+struct MonthCalendar<Cell: View>: View {
+    @Binding var month: Date
+    let cell: CGFloat
+    @ViewBuilder let dayCell: (Date) -> Cell
+
+    static var cal: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.firstWeekday = 2 // 월요일 (우리 주 규칙과 같음)
+        return c
+    }
+
+    private var cal: Calendar { Self.cal }
+    private let weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            monthHeader
+            weekdayRow
+            grid
+        }
     }
 
     // MARK: 월 이동
@@ -115,54 +205,15 @@ struct DuePicker: View {
             ForEach(0..<(days.count / 7), id: \.self) { row in
                 HStack(spacing: 0) {
                     ForEach(0..<7, id: \.self) { col in
-                        dayCell(days[row * 7 + col])
-                    }
-                }
-            }
-        }
-    }
-
-    private func dayCell(_ day: Date?) -> some View {
-        Group {
-            if let day {
-                let isToday = cal.isDateInToday(day)
-                let isSelected = task.dueAt == string(from: day)
-                let inMonth = cal.isDate(day, equalTo: month, toGranularity: .month)
-                let count = store.state.tasks.filter { $0.dueAt == string(from: day) }.count
-
-                Button {
-                    store.setDue(task.id, string(from: day))
-                    done()
-                } label: {
-                    VStack(spacing: 1) {
-                        Text("\(cal.component(.day, from: day))")
-                            .font(.system(size: 12.5, weight: isToday ? .bold : .regular))
-                        Circle()
-                            .fill(count > 0 ? accent : .clear)
-                            .frame(width: 3.5, height: 3.5)
-                    }
-                    .frame(width: cell, height: cell - 4)
-                    .background(isSelected ? accent : .clear)
-                    .foregroundStyle(cellForeground(selected: isSelected, today: isToday, inMonth: inMonth))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay {
-                        if isToday && !isSelected {
-                            RoundedRectangle(cornerRadius: 8).strokeBorder(accent, lineWidth: 1.4)
+                        if let day = days[row * 7 + col] {
+                            dayCell(day)
+                        } else {
+                            Color.clear.frame(width: cell, height: cell - 4)
                         }
                     }
                 }
-                .buttonStyle(.plain)
-            } else {
-                Color.clear.frame(width: cell, height: cell - 4)
             }
         }
-    }
-
-    private func cellForeground(selected: Bool, today: Bool, inMonth: Bool) -> Color {
-        if selected { return .white }
-        if !inMonth { return .primary.opacity(0.25) }
-        if today { return accent }
-        return .primary.opacity(0.85)
     }
 
     /// 월요일 시작 격자. 앞뒤 빈칸은 이전·다음 달 날짜로 채운다.
@@ -182,41 +233,5 @@ struct DuePicker: View {
             days.append(cal.date(byAdding: .day, value: days.count - leading, to: first))
         }
         return days
-    }
-
-    // MARK: 발
-
-    private var footer: some View {
-        HStack {
-            Button("기한 없음") {
-                store.setDue(task.id, "none")
-                done()
-            }
-            .buttonStyle(.plain)
-            .font(.system(size: 11.5))
-            .foregroundStyle(.secondary)
-
-            Spacer()
-
-            if !task.dueAt.isEmpty {
-                Text("지금 " + task.dueLabel)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    // MARK: 날짜 문자열 (Go와 주고받는 형식)
-
-    private func string(from date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
-    }
-
-    private func date(from string: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        return f.date(from: string)
     }
 }

@@ -56,6 +56,7 @@ Click the character in the menu bar to open the popover.
 - Type one line in the field at the bottom and press `⏎`
 - To add several at once, click **☰**, paste, and press `⌘⏎`. One line becomes one task. Lines are parsed concurrently, so three lines take about as long as one
 - Hover a row for **due date, rewrite, delete**. Click the **○** on the left to complete it
+- Switch tabs with **할 일 | 기록** at the bottom left. The 기록 tab groups tasks by day. At the top, choose between the day each was **added** and the day it was **done**, and pick a period (last month by default; click 📅 and pick a start and end day)
 - When a due date is ambiguous, for example when "Tuesday" is today, a confirmation card says so
 
 The same things work from the terminal.
@@ -65,6 +66,7 @@ The same things work from the terminal.
 | `tasklet add "<sentence>"` | Add one task |
 | `tasklet add --batch [text]` | Add several at once. Reads stdin when no text is given |
 | `tasklet list [--all]` | List tasks. `--all` includes completed ones |
+| `tasklet history [--created] [--from date] [--to date]` | Completed tasks, grouped by the day they were done. `--created` groups every task by the day it was added. Defaults to the last month |
 | `tasklet done <id>` | Complete |
 | `tasklet delete <id>...` | Delete. Accepts several ids |
 | `tasklet edit <id>` | Rewrite the original sentence and parse it again |

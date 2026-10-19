@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"time"
 
@@ -112,6 +113,118 @@ func doneToday(tasks []store.Task, now time.Time) []jsonTask {
 		out = append(out, jsonTaskOf(t, "done", now))
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].DoneAt > out[j].DoneAt })
+	return out
+}
+
+type jsonDay struct {
+	Date  string     `json:"date"`  // "2026-10-17"
+	Label string     `json:"label"` // "10/17(토)", "10/19(월) 오늘"
+	Tasks []jsonTask `json:"tasks"`
+}
+
+// cmdHistory는 일을 날짜별로 보여준다 (tasklet history [--created] [--from 날짜] [--to 날짜] [--json]).
+// 기본은 완료한 날 기준, --created면 등록한 날 기준.
+// 기간은 기본 최근 1개월(한 달 전 ~ 오늘). 이력이 쌓여도 화면에 넘기는 양이 일정하게.
+// 화면에서는 팝오버의 '기록' 탭이 부르고, JSON에는 두 기준을 다 담는다.
+func cmdHistory(args []string) error {
+	now := time.Now()
+	from, to, err := historyRange(args, now)
+	if err != nil {
+		return err
+	}
+	f, err := store.Read()
+	if err != nil {
+		return err
+	}
+	weekend := store.LoadConfig().WeekendDueBucket
+	created := render.Between(render.CreatedByDay(f.Tasks, now.Location()), from, to)
+	done := render.Between(render.DoneByDay(f.Tasks, now.Location()), from, to)
+
+	if jsonMode {
+		out := struct {
+			From    string    `json:"from"` // 실제로 적용한 기간 (기본값이면 Go가 정한 값)
+			To      string    `json:"to"`
+			Created []jsonDay `json:"created"` // 등록한 날별. 완료한 것도 들어간다
+			Done    []jsonDay `json:"done"`    // 완료한 날별
+		}{
+			From: from.Format(time.DateOnly), To: to.Format(time.DateOnly),
+			Created: jsonDays(created, now, weekend), Done: jsonDays(done, now, weekend),
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
+	}
+
+	byCreated := slices.Contains(args, "--created")
+	days := done
+	if byCreated {
+		days = created
+	}
+	fmt.Printf("%s ~ %s\n\n", from.Format(time.DateOnly), to.Format(time.DateOnly))
+	if len(days) == 0 {
+		fmt.Println("기록 없음")
+		return nil
+	}
+	for i, d := range days {
+		if i > 0 {
+			fmt.Println()
+		}
+		fmt.Printf("%s  %d건\n", render.DayLabel(d.Date, now), len(d.Tasks))
+		for _, t := range d.Tasks {
+			at, mark := t.CreatedAt, "○"
+			if t.Status == store.StatusDone {
+				mark = "✓"
+			}
+			if !byCreated {
+				at = *t.DoneAt
+			}
+			who := ""
+			if t.Requester != nil && *t.Requester != "" {
+				who = "  ·  " + *t.Requester
+			}
+			fmt.Printf("  %s %s  %3d  %s%s\n", at.In(now.Location()).Format("15:04"), mark, t.ID, t.Title, who)
+		}
+	}
+	return nil
+}
+
+// historyRange는 --from·--to를 읽는다. 없으면 한 달 전 ~ 오늘.
+func historyRange(args []string, now time.Time) (from, to time.Time, err error) {
+	to, from = now, render.MonthBefore(now)
+	for _, flag := range []struct {
+		name string
+		dst  *time.Time
+	}{{"--from", &from}, {"--to", &to}} {
+		v, given := flagValue(args, flag.name)
+		if !given {
+			continue
+		}
+		d, perr := time.ParseInLocation(time.DateOnly, v, now.Location())
+		if perr != nil {
+			return from, to, fmt.Errorf("%s 값은 2026-10-19 형식이어야 한다: %q", flag.name, v)
+		}
+		*flag.dst = d
+	}
+	if to.Before(from) {
+		return from, to, fmt.Errorf("기간이 거꾸로다: %s ~ %s", from.Format(time.DateOnly), to.Format(time.DateOnly))
+	}
+	return from, to, nil
+}
+
+// jsonDays는 날짜 묶음을 화면 형식으로. 버킷은 완료면 done, 아니면 지금 기준 버킷 (색 표시용).
+func jsonDays(days []render.Day, now time.Time, weekend string) []jsonDay {
+	out := []jsonDay{} // null이 아니라 빈 배열로
+	for _, d := range days {
+		jd := jsonDay{Date: d.Date.Format(time.DateOnly), Label: render.DayLabel(d.Date, now)}
+		for _, t := range d.Tasks {
+			bucket := "done"
+			if t.Status != store.StatusDone {
+				bucket = bucketName[render.BucketOf(t, now, weekend)]
+			}
+			jd.Tasks = append(jd.Tasks, jsonTaskOf(t, bucket, now))
+		}
+		out = append(out, jd)
+	}
 	return out
 }
 

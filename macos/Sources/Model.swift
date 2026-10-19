@@ -63,6 +63,23 @@ struct Snapshot: Decodable, Equatable {
     }
 }
 
+/// 기록의 하루치 (tasklet history --json). 최근 날짜가 먼저 온다.
+struct HistoryDay: Identifiable, Decodable, Equatable {
+    let date: String    // "2026-10-17"
+    let label: String   // "10/17(토)", "10/19(월) 오늘"
+    let tasks: [Item]   // 그날 안에서도 최근 것이 위
+
+    var id: String { date }
+}
+
+/// 기록. 기간 안의 일을 등록한 날 기준과 완료한 날 기준으로 각각 묶은 것.
+struct History: Decodable, Equatable {
+    var from = ""   // 실제로 적용된 기간 "2026-09-19" (기본값이면 Go가 정한 최근 1개월)
+    var to = ""
+    var created: [HistoryDay] = []  // 완료 여부와 상관없이 전부
+    var done: [HistoryDay] = []
+}
+
 enum Bucket: String, CaseIterable {
     case past, today, tomorrow, this_week, later
 
@@ -85,6 +102,11 @@ final class Store: ObservableObject {
     @Published var busyNote = ""         // 무엇을 기다리는 중인지 ("3줄 추가하는 중…")
     @Published var errorText = ""
     @Published var pending: (ids: [Int], reasons: [String])? // 확인이 필요한 결과
+    @Published var history = History()  // '기록' 탭을 열 때 채운다
+    /// 사용자가 고른 기록 기간 ("yyyy-MM-dd"). nil이면 최근 1개월 — 날짜가 바뀌어도 오늘 기준을 따라가게
+    /// 값으로 들고 있지 않고 Go가 그때그때 정하게 둔다.
+    @Published var historyRange: (from: String, to: String)?
+    @Published var historyError = ""
 
     private let exe: String
     private var timer: Timer?
@@ -136,6 +158,33 @@ final class Store: ObservableObject {
 
     func setDue(_ id: Int, _ spec: String) { run(["due", String(id), spec]) }
 
+    /// 기록. 상태 JSON에 싣지 않고 '기록' 탭이 필요할 때만 기간만큼 따로 읽는다.
+    func loadHistory() {
+        let exe = self.exe
+        var args = ["history", "--json"]
+        if let range = historyRange {
+            args += ["--from", range.from, "--to", range.to]
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = Self.exec(exe, args, as: History.self)
+            DispatchQueue.main.async {
+                switch result {
+                case .failure(let message):
+                    self.historyError = message
+                case .success(let history):
+                    self.historyError = ""
+                    self.history = history
+                }
+            }
+        }
+    }
+
+    /// 기록 기간을 바꾸고 다시 읽는다. nil이면 최근 1개월로 돌아간다.
+    func setHistoryRange(_ range: (from: String, to: String)?) {
+        historyRange = range
+        loadHistory()
+    }
+
     func setTheme(_ key: String) { run(["theme", key]) }
 
     func setMascot(_ key: String) { run(["mascot", key]) }
@@ -163,7 +212,7 @@ final class Store: ObservableObject {
         }
         let exe = self.exe
         DispatchQueue.global(qos: .userInitiated).async {
-            let result = Self.exec(exe, args + ["--json"])
+            let result = Self.exec(exe, args + ["--json"], as: Snapshot.self)
             DispatchQueue.main.async {
                 if slow != nil {
                     self.busy = false
@@ -185,9 +234,9 @@ final class Store: ObservableObject {
         }
     }
 
-    private enum Outcome { case success(Snapshot), failure(String) }
+    private enum Outcome<T> { case success(T), failure(String) }
 
-    private static func exec(_ exe: String, _ args: [String]) -> Outcome {
+    private static func exec<T: Decodable>(_ exe: String, _ args: [String], as type: T.Type) -> Outcome<T> {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)
         p.arguments = args
@@ -207,8 +256,8 @@ final class Store: ObservableObject {
            let message = obj["error"] as? String {
             return .failure(message)
         }
-        if let state = try? JSONDecoder().decode(Snapshot.self, from: data) {
-            return .success(state)
+        if let value = try? JSONDecoder().decode(type, from: data) {
+            return .success(value)
         }
         let stderr = String(data: errData, encoding: .utf8) ?? ""
         return .failure(stderr.isEmpty ? "응답을 읽지 못했습니다" : stderr)
